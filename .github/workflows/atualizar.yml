@@ -1,0 +1,36 @@
+name: Atualizar METAR/TAF
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # corre de hora a hora
+  workflow_dispatch:
+
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar repositório
+        uses: actions/checkout@v3
+
+      - name: Instalar curl
+        run: sudo apt-get install -y curl
+
+      - name: Buscar dados e gerar JSON
+        run: |
+          mkdir -p dados
+
+          for ICAO in LPPT LPFR LPPR LPCS LPMR; do
+            METAR=$(curl -s "https://tgftp.nws.noaa.gov/data/observations/metar/stations/${ICAO}.TXT" | tail -n1)
+            TAF=$(curl -s "https://tgftp.nws.noaa.gov/data/forecasts/taf/stations/${ICAO}.TXT" | tail -n1)
+
+            echo "{\"icao\":\"$ICAO\",\"metar\":\"$METAR\"}" > dados/metar-$ICAO.json
+            echo "{\"icao\":\"$ICAO\",\"taf\":\"$TAF\"}" > dados/taf-$ICAO.json
+          done
+
+      - name: Commit e push
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add dados/*.json
+          git commit -m "Atualização automática METAR/TAF"
+          git push
