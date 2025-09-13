@@ -14,16 +14,28 @@
     h1 {
       text-align: center;
     }
+    input {
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: none;
+      margin-right: 10px;
+    }
+    button {
+      padding: 10px 15px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: none;
+      background: #007acc;
+      color: white;
+      cursor: pointer;
+    }
     .card {
       background: #2e2e3e;
       padding: 20px;
       border-radius: 10px;
       box-shadow: 0 0 10px #000;
       margin-top: 20px;
-    }
-    .card.severe {
-      background: #8b0000;
-      border: 2px solid #ff4c4c;
     }
     .card h2 {
       margin-top: 0;
@@ -35,58 +47,49 @@
       margin-top: 10px;
       white-space: pre-wrap;
     }
-    #debug {
-      background: #333;
-      padding: 10px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-    }
-    #debug h2 {
-      color: #ffcc00;
-      margin: 0 0 10px;
-    }
-    #debug-output {
-      color: #ccc;
-      font-size: 14px;
-      white-space: pre-wrap;
-    }
   </style>
 </head>
 <body>
   <h1>Painel METAR / TAF</h1>
-  <div id="debug">
-    <h2>🔍 Diagnóstico</h2>
-    <pre id="debug-output">A carregar...</pre>
+  <div style="text-align:center;">
+    <input id="icaoInput" placeholder="Introduz ICAO (ex: LPPT)" maxlength="4" />
+    <button onclick="buscarDados()">Buscar</button>
   </div>
   <div id="panel"></div>
 
   <script>
-    Promise.all([
-      fetch("metar.json").then(res => res.json()),
-      fetch("taf.json").then(res => res.json())
-    ]).then(([metarData, tafData]) => {
-      const metarTraduzido = traduzirTexto(metarData.metar);
-      const tafTraduzido = traduzirTexto(tafData.taf);
+    function buscarDados() {
+      const icao = document.getElementById("icaoInput").value.trim().toUpperCase();
+      if (!icao || icao.length !== 4) {
+        alert("Insere um código ICAO válido com 4 letras.");
+        return;
+      }
 
-      document.getElementById("debug-output").textContent =
-        "METAR bruto:\n" + metarData.metar + "\n\n" +
-        "METAR traduzido:\n" + metarTraduzido;
+      document.getElementById("panel").innerHTML = "<p>A carregar dados METAR/TAF...</p>";
 
-      renderCard(`🛬 METAR ${metarData.icao}`, metarTraduzido, metarData.metar.includes("+RA") || metarData.metar.includes("TS") || metarData.metar.includes("0000"));
-      renderCard(`📋 TAF ${tafData.icao}`, tafTraduzido, tafData.taf.includes("TS") || tafData.taf.includes("PROB"));
-    }).catch(err => {
-      document.getElementById("debug-output").textContent = "❌ Erro ao carregar ficheiros METAR/TAF:\n" + err;
-    });
+      const metarURL = `https://aviationweather.gov/api/data/metar?ids=${icao}&format=raw`;
+      const tafURL = `https://aviationweather.gov/api/data/taf?ids=${icao}&format=raw`;
 
-    function renderCard(titulo, texto, severo = false) {
+      Promise.all([
+        fetch(metarURL).then(res => res.text()),
+        fetch(tafURL).then(res => res.text())
+      ]).then(([metarRaw, tafRaw]) => {
+        renderCard(`🛬 METAR ${icao}`, traduzirTexto(metarRaw));
+        renderCard(`📋 TAF ${icao}`, traduzirTexto(tafRaw));
+      }).catch(err => {
+        document.getElementById("panel").innerHTML = `<p>❌ Erro ao obter dados: ${err}</p>`;
+      });
+    }
+
+    function renderCard(titulo, texto) {
       const div = document.createElement("div");
-      div.className = "card" + (severo ? " severe" : "");
+      div.className = "card";
       div.innerHTML = `<h2>${titulo}</h2><span>${texto}</span>`;
       document.getElementById("panel").appendChild(div);
     }
 
     function traduzirTexto(texto) {
-      if (!texto || typeof texto !== "string") return "⚠️ METAR inválido ou ausente.";
+      if (!texto || !texto.includes("Z")) return "⚠️ Dados não encontrados.";
 
       return texto
         .replace(/(\d{6}Z)/, (_, zulu) => `🕒 Observado às ${zulu} (UTC)`)
