@@ -4,32 +4,54 @@
   <meta charset="UTF-8">
   <title>METAR Viewer</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background: #f0f0f0; }
-    #metar { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 0 10px #ccc; margin-top: 20px; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 30px;
+      max-width: 600px;
+      margin: auto;
+    }
+    h1 {
+      color: #333;
+    }
+    input, button {
+      padding: 10px;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+    #metar {
+      margin-top: 20px;
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px #ccc;
+    }
   </style>
 </head>
 <body>
-  <h1>METAR - Condições Meteorológicas</h1>
-  <label for="icao">Código ICAO:</label>
+  <h1>Consulta METAR</h1>
+  <label for="icao">Código ICAO do aeroporto:</label><br>
   <input type="text" id="icao" value="LPPT" />
-  <button onclick="getMetar()">Buscar</button>
+  <button onclick="getMetar()">Buscar METAR</button>
 
-  <div id="metar">Insira um código ICAO e clique em buscar.</div>
+  <div id="metar">Insira um código ICAO e clique em "Buscar METAR".</div>
 
   <script>
     async function getMetar() {
       const icao = document.getElementById('icao').value.toUpperCase();
-      const url = `https://aviationweather.gov/cgi-bin/data/dataserver.php?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=1&stationString=${icao}`;
+      const targetUrl = `https://aviationweather.gov/cgi-bin/data/dataserver.php?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=1&stationString=${icao}`;
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
 
       try {
-        const response = await fetch(url);
-        const text = await response.text();
-        const match = text.match(/<raw_text>(.*?)<\/raw_text>/);
+        const response = await fetch(proxyUrl);
+        const data = await response.json();
+        const xml = data.contents;
+        const match = xml.match(/<raw_text>(.*?)<\/raw_text>/);
         const metar = match ? match[1] : "METAR não encontrado.";
         document.getElementById('metar').innerText = metar;
       } catch (error) {
         document.getElementById('metar').innerText = "Erro ao buscar dados.";
-        console.error(error);
+        console.error("Erro:", error);
       }
     }
   </script>
