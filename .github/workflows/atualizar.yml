@@ -2,7 +2,7 @@ name: Atualizar METAR/TAF
 
 on:
   schedule:
-    - cron: '0 * * * *'  # corre de hora a hora
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -26,6 +26,9 @@ jobs:
 
             [ -z "$METAR" ] && METAR="METAR não disponível para ${ICAO}"
             [ -z "$TAF" ] && TAF="TAF não disponível para ${ICAO}"
+
+            echo "📄 METAR para $ICAO: $METAR"
+            echo "📄 TAF para $ICAO: $TAF"
 
             echo "{\"icao\":\"$ICAO\",\"metar\":\"$METAR\"}" > dados/metar-$ICAO.json
             echo "{\"icao\":\"$ICAO\",\"taf\":\"$TAF\"}" > dados/taf-$ICAO.json
