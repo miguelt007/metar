@@ -88,36 +88,8 @@
     function traduzirTexto(texto) {
       if (!texto || typeof texto !== "string") return "⚠️ METAR inválido ou ausente.";
 
-      const horaMatch = texto.match(/(\d{2})(\d{2})(\d{2})Z/);
-      let horaLocal = "";
-      if (horaMatch) {
-        const [_, diaStr, horaStr, minutoStr] = horaMatch;
-        const dia = parseInt(diaStr);
-        const hora = parseInt(horaStr);
-        const minuto = parseInt(minutoStr);
-
-        const agora = new Date();
-        const ano = agora.getUTCFullYear();
-        const mes = agora.getUTCMonth();
-        const diaAtual = agora.getUTCDate();
-        const mesCorrigido = dia > diaAtual ? mes - 1 : mes;
-
-        const dataUTC = new Date(Date.UTC(ano, mesCorrigido, dia, hora, minuto));
-        horaLocal = new Intl.DateTimeFormat('pt-PT', {
-          timeZone: 'Europe/Lisbon',
-          day: '2-digit',
-          month: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
-        }).format(dataUTC);
-      }
-
       return texto
-        .replace(/(\d{6}Z)/, (_, zulu) => {
-          return horaLocal
-            ? `🕒 Observado às ${horaLocal} (hora local)`
-            : `🕒 Observado às ${zulu} (UTC)`;
-        })
+        .replace(/(\d{6}Z)/, (_, zulu) => `🕒 Observado às ${zulu} (UTC)`)
         .replace(/(\d{3})(\d{2})KT/, "💨 Vento de $1° a $2 nós")
         .replace(/CAVOK/, "🌤️ Céu limpo, visibilidade >10km")
         .replace(/(\d{4})(?!\/)/, "👁️ Visibilidade: $1 metros")
