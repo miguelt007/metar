@@ -2,7 +2,7 @@ name: Atualizar METAR/TAF
 
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '0 * * * *'  # corre de hora a hora
   workflow_dispatch:
 
 jobs:
@@ -21,7 +21,7 @@ jobs:
           for ICAO in LPPT LPFR LPPR LPCS LPMR LPPD LPSJ LPAV LPVZ LPMA KJFK KLAX KORD; do
             echo "🔄 A atualizar $ICAO..."
 
-            METAR=$(curl -s "https://tgftp.nws.noaa.gov/data/observations/metar/stations/${ICAO}.TXT" | grep "^METAR" || true)
+            METAR=$(curl -s "https://tgftp.nws.noaa.gov/data/observations/metar/stations/${ICAO}.TXT" | tail -n1 || true)
             TAF=$(curl -s "https://tgftp.nws.noaa.gov/data/forecasts/taf/stations/${ICAO}.TXT" | grep "^TAF" || true)
 
             [ -z "$METAR" ] && METAR="METAR não disponível para ${ICAO}"
