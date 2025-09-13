@@ -14,7 +14,7 @@
     h1 {
       text-align: center;
     }
-    select, button {
+    input, button {
       padding: 10px;
       font-size: 16px;
       border-radius: 5px;
@@ -52,46 +52,30 @@
 <body>
   <h1>Painel METAR / TAF</h1>
   <div style="text-align:center;">
-    <select id="icaoSelect">
-      <option value="">-- Escolhe ICAO --</option>
-    </select>
+    <input type="text" id="icaoInput" placeholder="Escreve ICAO (ex: LPPT)">
     <button onclick="buscarDados()">Buscar</button>
   </div>
   <div id="panel"></div>
 
   <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const icaosDisponiveis = ["LPPT", "LPFR", "LPCS", "LPPR", "LPMR"];
-      const select = document.getElementById("icaoSelect");
-      if (!select) {
-        console.error("Elemento #icaoSelect não encontrado.");
-        return;
-      }
-      icaosDisponiveis.forEach(icao => {
-        const opt = document.createElement("option");
-        opt.value = icao;
-        opt.textContent = icao;
-        select.appendChild(opt);
-      });
-    });
-
     function buscarDados() {
-      const icao = document.getElementById("icaoSelect").value;
-      if (!icao) {
-        alert("Escolhe um ICAO da lista.");
+      const icao = document.getElementById("icaoInput").value.trim().toUpperCase();
+      if (!icao || icao.length !== 4) {
+        alert("Insere um código ICAO válido com 4 letras.");
         return;
       }
 
       document.getElementById("panel").innerHTML = "<p>A carregar dados METAR/TAF...</p>";
 
       Promise.all([
-        fetch(`dados/metar-${icao}.json`).then(res => res.json()),
-        fetch(`dados/taf-${icao}.json`).then(res => res.json())
+        fetch(`dados/metar-${icao}.json`).then(res => res.ok ? res.json() : Promise.reject("METAR não disponível")),
+        fetch(`dados/taf-${icao}.json`).then(res => res.ok ? res.json() : Promise.reject("TAF não disponível"))
       ]).then(([metarData, tafData]) => {
+        document.getElementById("panel").innerHTML = "";
         renderCard(`🛬 METAR ${icao}`, traduzirTexto(metarData.metar), metarData.metar);
         renderCard(`📋 TAF ${icao}`, traduzirTexto(tafData.taf), tafData.taf);
       }).catch(err => {
-        document.getElementById("panel").innerHTML = `<p>❌ Erro ao obter dados para ${icao}: ${err}</p>`;
+        document.getElementById("panel").innerHTML = `<p>❌ ${err} para ${icao}. Verifica se os ficheiros existem em /dados/.</p>`;
       });
     }
 
@@ -144,6 +128,7 @@
             const slp = parseInt(slpMatch[1]) / 10 + 1000;
             output += `• Pressão ao nível do mar: ${slp.toFixed(1)} hPa\n`;
           }
+
           const tMatch = rmk.match(/T(\d{4})(\d{4})?/);
           if (tMatch) {
             const tempRaw = tMatch[1];
@@ -155,6 +140,7 @@
               output += `• Ponto de orvalho preciso: ${dew.toFixed(1)}°C\n`;
             }
           }
+
           const trendMatch = rmk.match(/500(\d{2})/);
           if (trendMatch) {
             const code = trendMatch[1];
