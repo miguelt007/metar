@@ -173,9 +173,11 @@
       let texto = metar
         .replace(/(\d{4})Z/, "Hora UTC: $1")
         .replace(/(\d{3})(\d{2})KT/, "Vento: $1° a $2 nós")
+        .replace(/VRB(\d{2})KT/, "Vento variável a $1 nós")
         .replace(/(\d{2})\/(\d{2})/, "Temperatura: $1°C / Ponto de orvalho: $2°C")
         .replace(/Q(\d{4})/, "Pressão: $1 hPa")
-        .replace(/(FEW|SCT|BKN|OVC)(\d{3})/, (_, tipo, altura) => {
+        .replace(/9999/, "Visibilidade ≥10 km")
+        .replace(/(FEW|SCT|BKN|OVC)(\d{3})/g, (_, tipo, altura) => {
           const mapa = { FEW: "Poucas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Cobertura total" };
           return `${mapa[tipo]} nuvens a ${altura * 30} pés`;
         });
@@ -216,9 +218,11 @@
         .replace(/NSW/, "Sem fenómenos significativos (NSW)")
         .replace(/TX(\d{2})\/(\d{4})Z/, "Temp máxima: $1°C às $2 UTC")
         .replace(/TN(\d{2})\/(\d{4})Z/, "Temp mínima: $1°C às $2 UTC")
+        .replace(/VRB(\d{2})KT/, "Vento variável a $1 nós")
         .replace(/(\d{3})(\d{2})KT/, "Vento: $1° a $2 nós")
+        .replace(/9999/, "Visibilidade ≥10 km")
         .replace(/CAVOK/, "Condições visuais excelentes (CAVOK)")
-        .replace(/(FEW|SCT|BKN|OVC)(\d{3})/, (_, tipo, altura) => {
+        .replace(/(FEW|SCT|BKN|OVC)(\d{3})/g, (_, tipo, altura) => {
           const mapa = { FEW: "Poucas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Cobertura total" };
           return `${mapa[tipo]} nuvens a ${altura * 30} pés`;
         });
