@@ -69,16 +69,33 @@
   </div>
 
   <div class="section">
+    <h2>🔍 Descodificação METAR</h2>
+    <pre id="metar-decode">Aguarde...</pre>
+  </div>
+
+  <div class="section">
     <h2>📋 TAF</h2>
     <pre id="taf">Selecione um aeroporto acima.</pre>
     <div class="timestamp" id="taf-time"></div>
   </div>
 
+  <div class="section">
+    <h2>🔍 Descodificação TAF</h2>
+    <pre id="taf-decode">Aguarde...</pre>
+  </div>
+
   <script>
+    let nomesICAO = {};
+
     async function carregarListaICAO() {
       try {
-        const res = await fetch("dados/icao-lista.json?" + Date.now());
-        const lista = await res.json();
+        const [listaRes, nomesRes] = await Promise.all([
+          fetch("dados/icao-lista.json?" + Date.now()),
+          fetch("dados/icao-nomes.json?" + Date.now())
+        ]);
+
+        const lista = await listaRes.json();
+        nomesICAO = await nomesRes.json();
 
         const select = document.getElementById("icao");
         select.innerHTML = "";
@@ -86,44 +103,26 @@
         lista.forEach(icao => {
           const opt = document.createElement("option");
           opt.value = icao;
-          opt.textContent = `${icao} - ${nomeAeroporto(icao)}`;
+          opt.textContent = `${icao} - ${nomesICAO[icao] || "Desconhecido"}`;
           select.appendChild(opt);
         });
 
         select.onchange = () => carregarDados(select.value);
         carregarDados(lista[0]);
       } catch (error) {
-        console.error("Erro ao carregar lista de ICAOs:", error);
+        console.error("Erro ao carregar ICAOs ou nomes:", error);
         document.getElementById("icao").innerHTML = "<option>Erro ao carregar ICAOs</option>";
       }
-    }
-
-    function nomeAeroporto(icao) {
-      const nomes = {
-        LPPT: "Lisboa",
-        LPFR: "Faro",
-        LPPR: "Porto",
-        LPCS: "Cascais",
-        LPMR: "Monte Real",
-        LPPD: "Ponta Delgada",
-        LPSJ: "São Jorge",
-        LPLA: "Lajes",
-        LPMA: "Madeira",
-        LPPS: "Porto Santo",
-        LPAZ: "Santa Maria",
-        KJFK: "New York",
-        KLAX: "Los Angeles",
-        KORD: "Chicago"
-      };
-      return nomes[icao] || "Desconhecido";
     }
 
     async function carregarDados(icao) {
       const cacheBuster = Date.now();
 
       try {
-        const metarRes = await fetch(`dados/metar-${icao}.json?${cacheBuster}`);
-        const tafRes = await fetch(`dados/taf-${icao}.json?${cacheBuster}`);
+        const [metarRes, tafRes] = await Promise.all([
+          fetch(`dados/metar-${icao}.json?${cacheBuster}`),
+          fetch(`dados/taf-${icao}.json?${cacheBuster}`)
+        ]);
 
         const metarData = await metarRes.json();
         const tafData = await tafRes.json();
@@ -137,9 +136,11 @@
           document.getElementById("metar-time").textContent = metarData.updated
             ? `Atualizado em: ${metarData.updated}`
             : "";
+          document.getElementById("metar-decode").textContent = descodificarMETAR(metarTexto);
         } else {
           document.getElementById("metar").textContent = "⚠️ Dados não encontrados.";
           document.getElementById("metar-time").textContent = "";
+          document.getElementById("metar-decode").textContent = "";
         }
 
         // TAF
@@ -148,9 +149,11 @@
           document.getElementById("taf-time").textContent = tafData.updated
             ? `Atualizado em: ${tafData.updated}`
             : "";
+          document.getElementById("taf-decode").textContent = descodificarTAF(tafTexto);
         } else {
           document.getElementById("taf").textContent = "⚠️ Dados não encontrados.";
           document.getElementById("taf-time").textContent = "";
+          document.getElementById("taf-decode").textContent = "";
         }
 
       } catch (error) {
@@ -159,7 +162,35 @@
         document.getElementById("taf").textContent = "⚠️ Erro ao carregar TAF.";
         document.getElementById("metar-time").textContent = "";
         document.getElementById("taf-time").textContent = "";
+        document.getElementById("metar-decode").textContent = "";
+        document.getElementById("taf-decode").textContent = "";
       }
+    }
+
+    function descodificarMETAR(metar) {
+      if (!metar) return "";
+      return metar
+        .replace(/(\d{4})Z/, "Hora UTC: $1")
+        .replace(/(\d{3})(\d{2})KT/, "Vento: $1° a $2 nós")
+        .replace(/(\d{2})\/(\d{2})/, "Temperatura: $1°C / Ponto de orvalho: $2°C")
+        .replace(/Q(\d{4})/, "Pressão: $1 hPa")
+        .replace(/(FEW|SCT|BKN|OVC)(\d{3})/, (_, tipo, altura) => {
+          const mapa = { FEW: "Poucas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Cobertura total" };
+          return `${mapa[tipo]} nuvens a ${altura * 30} pés`;
+        });
+    }
+
+    function descodificarTAF(taf) {
+      if (!taf) return "";
+      return taf
+        .replace(/FM(\d{6})/, "A partir de: $1")
+        .replace(/BECMG (\d{4}\/\d{4})/, "Tendência: $1")
+        .replace(/TEMPO (\d{4}\/\d{4})/, "Condições temporárias: $1")
+        .replace(/(\d{3})(\d{2})KT/, "Vento: $1° a $2 nós")
+        .replace(/(FEW|SCT|BKN|OVC)(\d{3})/, (_, tipo, altura) => {
+          const mapa = { FEW: "Poucas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Cobertura total" };
+          return `${mapa[tipo]} nuvens a ${altura * 30} pés`;
+        });
     }
 
     carregarListaICAO();
