@@ -28,6 +28,11 @@
     .section {
       margin-top: 30px;
     }
+    .timestamp {
+      font-size: 14px;
+      color: #666;
+      margin-top: 5px;
+    }
   </style>
 </head>
 <body>
@@ -41,6 +46,7 @@
     <option value="LPCS">LPCS - Cascais</option>
     <option value="LPMR">LPMR - Monte Real</option>
     <option value="LPPD">LPPD - Ponta Delgada</option>
+    <option value="LPPD">LPLA - Lajes</option>
     <option value="LPSJ">LPSJ - São Jorge</option>
     <option value="LPAV">LPAV - Aveiro</option>
     <option value="LPVZ">LPVZ - Viseu</option>
@@ -53,44 +59,61 @@
   <div class="section">
     <h2>🛬 METAR</h2>
     <pre id="metar">Selecione um aeroporto acima.</pre>
+    <div class="timestamp" id="metar-time"></div>
   </div>
 
   <div class="section">
     <h2>📋 TAF</h2>
     <pre id="taf">Selecione um aeroporto acima.</pre>
+    <div class="timestamp" id="taf-time"></div>
   </div>
 
   <script>
     async function carregarDados(icao) {
+      const cacheBuster = new Date().getTime();
+
       try {
-        const metarRes = await fetch(`dados/metar-${icao}.json`);
-        const tafRes = await fetch(`dados/taf-${icao}.json`);
+        const metarRes = await fetch(`dados/metar-${icao}.json?${cacheBuster}`);
+        const tafRes = await fetch(`dados/taf-${icao}.json?${cacheBuster}`);
 
         const metarData = await metarRes.json();
         const tafData = await tafRes.json();
 
-        // METAR: mostrar apenas se válido
-        if (metarData.metar && !metarData.metar.includes("não disponível")) {
-          document.getElementById("metar").textContent = metarData.metar;
+        const metarTexto = metarData.metar?.trim();
+        const tafTexto = tafData.taf?.trim();
+
+        // METAR
+        if (metarTexto && !metarTexto.toLowerCase().includes("não disponível")) {
+          document.getElementById("metar").textContent = metarTexto;
+          document.getElementById("metar-time").textContent = metarData.updated
+            ? `Atualizado em: ${metarData.updated}`
+            : "";
         } else {
           document.getElementById("metar").textContent = "⚠️ Dados não encontrados.";
+          document.getElementById("metar-time").textContent = "";
         }
 
-        // TAF: mostrar como texto plano, sem parsing
-        if (tafData.taf && !tafData.taf.includes("não disponível")) {
-          document.getElementById("taf").textContent = tafData.taf;
+        // TAF
+        if (tafTexto && !tafTexto.toLowerCase().includes("não disponível")) {
+          document.getElementById("taf").textContent = tafTexto;
+          document.getElementById("taf-time").textContent = tafData.updated
+            ? `Atualizado em: ${tafData.updated}`
+            : "";
         } else {
           document.getElementById("taf").textContent = "⚠️ Dados não encontrados.";
+          document.getElementById("taf-time").textContent = "";
         }
 
       } catch (error) {
         console.error("Erro ao carregar dados:", error);
         document.getElementById("metar").textContent = "⚠️ Erro ao carregar METAR.";
         document.getElementById("taf").textContent = "⚠️ Erro ao carregar TAF.";
+        document.getElementById("metar-time").textContent = "";
+        document.getElementById("taf-time").textContent = "";
       }
     }
 
-    // Carregamento inicial opcional
+    // Carregamento inicial
     carregarDados("LPPT");
   </script>
 </body>
