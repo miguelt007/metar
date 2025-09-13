@@ -14,16 +14,12 @@
     h1 {
       text-align: center;
     }
-    input, button {
+    select, button {
       padding: 10px;
       font-size: 16px;
       border-radius: 5px;
       border: none;
       margin: 5px;
-    }
-    input {
-      width: 120px;
-      text-transform: uppercase;
     }
     button {
       background: #007acc;
@@ -56,30 +52,41 @@
 <body>
   <h1>Painel METAR / TAF</h1>
   <div style="text-align:center;">
-    <input id="icaoInput" placeholder="Código ICAO (ex: LPPT)" maxlength="4" />
+    <select id="icaoSelect">
+      <option value="">-- Escolhe ICAO --</option>
+    </select>
     <button onclick="buscarDados()">Buscar</button>
   </div>
   <div id="panel"></div>
 
   <script>
+    const icaosDisponiveis = ["LPPT", "LPFR", "LPCS", "LPPR", "LPMR"];
+
+    window.onload = () => {
+      const select = document.getElementById("icaoSelect");
+      icaosDisponiveis.forEach(icao => {
+        const opt = document.createElement("option");
+        opt.value = icao;
+        opt.textContent = icao;
+        select.appendChild(opt);
+      });
+    };
+
     function buscarDados() {
-      const icao = document.getElementById("icaoInput").value.trim().toUpperCase();
-      if (!icao || icao.length !== 4) {
-        alert("Insere um código ICAO válido com 4 letras.");
+      const icao = document.getElementById("icaoSelect").value;
+      if (!icao) {
+        alert("Escolhe um ICAO da lista.");
         return;
       }
 
       document.getElementById("panel").innerHTML = "<p>A carregar dados METAR/TAF...</p>";
 
-      const metarURL = `https://aviationweather.gov/api/data/metar?ids=${icao}&format=raw`;
-      const tafURL = `https://aviationweather.gov/api/data/taf?ids=${icao}&format=raw`;
-
       Promise.all([
-        fetch(metarURL).then(res => res.text()),
-        fetch(tafURL).then(res => res.text())
-      ]).then(([metarRaw, tafRaw]) => {
-        renderCard(`🛬 METAR ${icao}`, traduzirTexto(metarRaw), metarRaw);
-        renderCard(`📋 TAF ${icao}`, traduzirTexto(tafRaw), tafRaw);
+        fetch(`metar-${icao}.json`).then(res => res.json()),
+        fetch(`taf-${icao}.json`).then(res => res.json())
+      ]).then(([metarData, tafData]) => {
+        renderCard(`🛬 METAR ${icao}`, traduzirTexto(metarData.metar), metarData.metar);
+        renderCard(`📋 TAF ${icao}`, traduzirTexto(tafData.taf), tafData.taf);
       }).catch(err => {
         document.getElementById("panel").innerHTML = `<p>❌ Erro ao obter dados para ${icao}: ${err}</p>`;
       });
@@ -163,8 +170,3 @@
           if (/\$/.test(rmk)) output += "• Manutenção necessária na estação\n";
 
           return output.trim();
-        });
-    }
-  </script>
-</body>
-</html>
