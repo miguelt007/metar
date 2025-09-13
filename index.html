@@ -2,43 +2,67 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>METAR Traduzido</title>
+  <title>Painel METAR</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
+      font-family: 'Segoe UI', sans-serif;
+      background: #1e1e2f;
+      color: #fff;
       padding: 30px;
-      max-width: 800px;
-      margin: auto;
+      margin: 0;
     }
     h1 {
-      color: #333;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .input-area {
+      text-align: center;
+      margin-bottom: 20px;
     }
     input, button {
       padding: 10px;
       font-size: 16px;
-      margin-top: 10px;
+      margin: 5px;
+      border-radius: 5px;
+      border: none;
     }
-    #metar, #traducao {
+    button {
+      background-color: #0078d7;
+      color: white;
+      cursor: pointer;
+    }
+    .panel {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
       margin-top: 20px;
-      background: #fff;
-      padding: 15px;
-      border-radius: 8px;
-      box-shadow: 0 0 10px #ccc;
     }
-    #traducao {
-      background: #e8f5e9;
+    .card {
+      background: #2e2e3e;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px #000;
+    }
+    .card h2 {
+      margin-top: 0;
+      font-size: 18px;
+    }
+    .card span {
+      font-size: 24px;
+      display: block;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
-  <h1>Consulta METAR com Tradução</h1>
-  <label for="icao">Código ICAO do aeroporto:</label><br>
-  <input type="text" id="icao" value="LPPT" />
-  <button onclick="getMetar()">Buscar METAR</button>
+  <h1>Painel de Controle METAR</h1>
+  <div class="input-area">
+    <input type="text" id="icao" value="LPPT" placeholder="Código ICAO" />
+    <button onclick="getMetar()">Buscar</button>
+  </div>
 
-  <div id="metar">Insira um código ICAO e clique em "Buscar METAR".</div>
-  <div id="traducao"></div>
+  <div id="metarRaw" style="text-align:center;"></div>
+  <div class="panel" id="metarPanel"></div>
 
   <script>
     async function getMetar() {
@@ -52,67 +76,59 @@
         const xml = data.contents;
         const match = xml.match(/<raw_text>(.*?)<\/raw_text>/);
         const metar = match ? match[1] : "METAR não encontrado.";
-        document.getElementById('metar').innerText = metar;
-        document.getElementById('traducao').innerText = traduzirMetar(metar);
+        document.getElementById('metarRaw').innerText = metar;
+        renderPanel(metar);
       } catch (error) {
-        document.getElementById('metar').innerText = "Erro ao buscar dados.";
-        document.getElementById('traducao').innerText = "";
+        document.getElementById('metarRaw').innerText = "Erro ao buscar dados.";
+        document.getElementById('metarPanel').innerHTML = "";
         console.error("Erro:", error);
       }
     }
 
-    function traduzirMetar(metar) {
-      if (!metar || metar === "METAR não encontrado.") return "";
-
+    function renderPanel(metar) {
       const partes = metar.split(" ");
-      let resultado = [];
+      const panel = document.getElementById('metarPanel');
+      panel.innerHTML = "";
 
       partes.forEach(p => {
         if (/^\d{6}Z$/.test(p)) {
-          resultado.push(`Observado às ${p.slice(2,4)}:${p.slice(4,6)} UTC no dia ${p.slice(0,2)}.`);
-        } else if (/^\d{3}\d{2}G\d{2}KT$/.test(p)) {
-          const direcao = p.slice(0,3);
-          const vel = p.slice(3,5);
-          const rajada = p.slice(6,8);
-          resultado.push(`Vento de ${direcao}° a ${vel} nós com rajadas de ${rajada} nós.`);
-        } else if (/^VRB\d{2}KT$/.test(p)) {
-          const velocidade = p.slice(3,5);
-          resultado.push(`Vento variável a ${velocidade} nós.`);
+          addCard("🕒 Hora da Observação", `${p.slice(0,2)}/${p.slice(2,4)}:${p.slice(4,6)} UTC`);
         } else if (/^\d{3}\d{2}KT$/.test(p)) {
-          const direcao = p.slice(0,3);
-          const velocidade = p.slice(3,5);
-          resultado.push(`Vento de ${direcao}° a ${velocidade} nós.`);
+          addCard("💨 Vento", `${p.slice(0,3)}° a ${p.slice(3,5)} nós`);
+        } else if (/^VRB\d{2}KT$/.test(p)) {
+          addCard("💨 Vento Variável", `${p.slice(3,5)} nós`);
         } else if (/^\d{4}$/.test(p)) {
-          resultado.push(`Visibilidade de ${parseInt(p)} metros.`);
-        } else if (/^CAVOK$/.test(p)) {
-          resultado.push(`Céu limpo, visibilidade superior a 10 km, sem nuvens significativas ou fenômenos.`);
+          addCard("👁️ Visibilidade", `${p} metros`);
         } else if (/^(FEW|SCT|BKN|OVC)\d{3}$/.test(p)) {
-          const cobertura = { FEW: "Poucas nuvens", SCT: "Nuvens dispersas", BKN: "Nuvens fragmentadas", OVC: "Céu encoberto" };
+          const cobertura = { FEW: "Poucas nuvens", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Encoberto" };
           const tipo = p.slice(0,3);
           const altura = parseInt(p.slice(3)) * 100;
-          resultado.push(`${cobertura[tipo]} a ${altura} pés.`);
+          addCard("☁️ Nuvens", `${cobertura[tipo]} a ${altura} pés`);
         } else if (/^Q\d{4}$/.test(p)) {
-          resultado.push(`Pressão atmosférica de ${p.slice(1)} hPa.`);
+          addCard("📉 Pressão", `${p.slice(1)} hPa`);
+        } else if (/^\d{2}\/\d{2}$/.test(p)) {
+          const [temp, dew] = p.split("/");
+          addCard("🌡️ Temperatura", `${temp}°C / Ponto de orvalho: ${dew}°C`);
         } else if (/^(-|\+)?(RA|SN|FG|BR|HZ|TS|DZ|GR)$/.test(p)) {
           const intensidade = p.startsWith("+") ? "forte" : p.startsWith("-") ? "fraca" : "moderada";
           const fenomeno = {
             RA: "chuva", SN: "neve", FG: "nevoeiro", BR: "névoa",
             HZ: "névoa seca", TS: "trovoada", DZ: "chuvisco", GR: "granizo"
           }[p.replace(/[-+]/, "")];
-          resultado.push(`${fenomeno.charAt(0).toUpperCase() + fenomeno.slice(1)} ${intensidade}.`);
-        } else if (/^\d{2}\/\d{2}$/.test(p)) {
-          const [temp, dew] = p.split("/");
-          resultado.push(`Temperatura: ${temp}°C, Ponto de orvalho: ${dew}°C.`);
-        } else if (/^R\d{2}[A-Z]?\/\d{4}$/.test(p)) {
-          resultado.push(`Alcance visual na pista: ${p}.`);
+          addCard("🌧️ Fenômeno", `${fenomeno} ${intensidade}`);
         } else if (/^NOSIG$/.test(p)) {
-          resultado.push(`Sem mudanças significativas esperadas.`);
-        } else if (/^(BECMG|TEMPO)$/.test(p)) {
-          resultado.push(`Tendência: ${p === "BECMG" ? "Mudança gradual esperada" : "Condições temporárias previstas"}.`);
+          addCard("🔮 Tendência", "Sem mudanças significativas");
+        } else if (/^CAVOK$/.test(p)) {
+          addCard("🌤️ Condições", "Céu limpo, visibilidade >10km");
         }
       });
 
-      return resultado.join(" ");
+      function addCard(titulo, valor) {
+        const div = document.createElement("div");
+        div.className = "card";
+        div.innerHTML = `<h2>${titulo}</h2><span>${valor}</span>`;
+        panel.appendChild(div);
+      }
     }
   </script>
 </body>
