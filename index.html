@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Painel METAR / TAF / SIGMET via Meteo365</title>
+  <title>Painel METAR via VATSIM</title>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -59,35 +59,31 @@
   </style>
 </head>
 <body>
-  <h1>Painel METAR / TAF / SIGMET via Meteo365</h1>
+  <h1>Painel METAR via VATSIM</h1>
   <div class="input-area">
     <input type="text" id="icao" value="LPPT" placeholder="Código ICAO" />
-    <button onclick="getMeteo365()">Buscar</button>
+    <button onclick="getMetar()">Buscar</button>
   </div>
   <div class="panel" id="panel"></div>
 
   <script>
-    async function getMeteo365() {
+    async function getMetar() {
       const icao = document.getElementById("icao").value.toUpperCase();
-      const url = `https://meteo365.es/airport/${icao}`;
-      const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+      const url = `https://metar.vatsim.net/${icao}?format=json`;
       const panel = document.getElementById("panel");
       panel.innerHTML = "";
 
       try {
-        const res = await fetch(proxy);
+        const res = await fetch(url);
         const data = await res.json();
-        const html = data.contents;
+        const raw = data.METAR || "METAR não encontrado.";
 
-        const metar = html.match(/METAR:\s*([\s\S]*?)<\/p>/)?.[1]?.trim() || "METAR não encontrado.";
-        const taf = html.match(/TAF:\s*([\s\S]*?)<\/p>/)?.[1]?.trim() || "TAF não encontrado.";
-        const sigmet = html.match(/SIGMET:\s*([\s\S]*?)<\/p>/)?.[1]?.trim() || "SIGMET não encontrado.";
+        const texto = traduzirTexto(raw);
+        const severo = raw.includes("+RA") || raw.includes("TS") || raw.includes("0000") || raw.includes("1300");
 
-        renderCard("🛬 METAR", traduzirTexto(metar), metar.includes("+RA") || metar.includes("TS") || metar.includes("1300"));
-        renderCard("📋 TAF", traduzirTexto(taf), taf.includes("TS") || taf.includes("PROB"));
-        renderCard("⚠️ SIGMET", sigmet, sigmet.includes("SEV TURB") || sigmet.includes("SEV ICE"));
+        renderCard(`🛬 METAR ${icao}`, texto, severo);
       } catch (err) {
-        panel.innerHTML = "<div class='card severe'><h2>Erro</h2><span>Não foi possível obter dados da Meteo365.</span></div>";
+        panel.innerHTML = "<div class='card severe'><h2>Erro</h2><span>Não foi possível obter dados da VATSIM API.</span></div>";
         console.error(err);
       }
     }
@@ -116,11 +112,7 @@
           const map = { RA: "chuva", SN: "neve", FG: "nevoeiro", BR: "névoa", TS: "trovoada", DZ: "chuvisco", GR: "granizo" };
           const intensidade = int === "+" ? "forte" : int === "-" ? "fraca" : "moderada";
           return `🌧️ ${map[fen]} ${intensidade}`;
-        })
-        .replace(/BECMG/g, "🔄 Mudança gradual esperada")
-        .replace(/TEMPO/g, "🔄 Condições temporárias")
-        .replace(/FM(\d{6})/g, (_, hora) => `🕒 A partir de ${hora.slice(0,2)}/${hora.slice(2,4)}:${hora.slice(4,6)} UTC`)
-        .replace(/PROB(\d{2})/g, (_, prob) => `📊 Probabilidade ${prob}%`);
+        });
     }
   </script>
 </body>
