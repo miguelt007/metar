@@ -14,18 +14,18 @@
     h1 {
       text-align: center;
     }
-    input {
+    input, button {
       padding: 10px;
       font-size: 16px;
       border-radius: 5px;
       border: none;
-      margin-right: 10px;
+      margin: 5px;
+    }
+    input {
+      width: 120px;
+      text-transform: uppercase;
     }
     button {
-      padding: 10px 15px;
-      font-size: 16px;
-      border-radius: 5px;
-      border: none;
       background: #007acc;
       color: white;
       cursor: pointer;
@@ -36,6 +36,10 @@
       border-radius: 10px;
       box-shadow: 0 0 10px #000;
       margin-top: 20px;
+    }
+    .card.severe {
+      background: #8b0000;
+      border: 2px solid #ff4c4c;
     }
     .card h2 {
       margin-top: 0;
@@ -52,7 +56,7 @@
 <body>
   <h1>Painel METAR / TAF</h1>
   <div style="text-align:center;">
-    <input id="icaoInput" placeholder="Introduz ICAO (ex: LPPT)" maxlength="4" />
+    <input id="icaoInput" placeholder="Código ICAO (ex: LPPT)" maxlength="4" />
     <button onclick="buscarDados()">Buscar</button>
   </div>
   <div id="panel"></div>
@@ -74,16 +78,17 @@
         fetch(metarURL).then(res => res.text()),
         fetch(tafURL).then(res => res.text())
       ]).then(([metarRaw, tafRaw]) => {
-        renderCard(`🛬 METAR ${icao}`, traduzirTexto(metarRaw));
-        renderCard(`📋 TAF ${icao}`, traduzirTexto(tafRaw));
+        renderCard(`🛬 METAR ${icao}`, traduzirTexto(metarRaw), metarRaw);
+        renderCard(`📋 TAF ${icao}`, traduzirTexto(tafRaw), tafRaw);
       }).catch(err => {
         document.getElementById("panel").innerHTML = `<p>❌ Erro ao obter dados: ${err}</p>`;
       });
     }
 
-    function renderCard(titulo, texto) {
+    function renderCard(titulo, texto, bruto) {
       const div = document.createElement("div");
-      div.className = "card";
+      const alerta = /TS|0000|PROB(4|5|6|7|8|9)|\$/.test(bruto);
+      div.className = "card" + (alerta ? " severe" : "");
       div.innerHTML = `<h2>${titulo}</h2><span>${texto}</span>`;
       document.getElementById("panel").appendChild(div);
     }
@@ -96,11 +101,13 @@
         .replace(/(\d{3})(\d{2})KT/, "💨 Vento de $1° a $2 nós")
         .replace(/CAVOK/, "🌤️ Céu limpo, visibilidade >10km")
         .replace(/(\d{4})(?!\/)/, "👁️ Visibilidade: $1 metros")
+        .replace(/(\d{2})SM/, (_, sm) => `👁️ Visibilidade: ${sm}SM (~${(sm * 1.609).toFixed(1)} km)`)
         .replace(/(FEW|SCT|BKN|OVC)(\d{3})/g, (_, tipo, alt) => {
           const map = { FEW: "Poucas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Encoberto" };
           return `☁️ Nuvens ${map[tipo]} a ${parseInt(alt) * 100} pés`;
         })
         .replace(/Q(\d{4})/, "📉 Pressão: $1 hPa")
+        .replace(/A(\d{4})/, (_, val) => `📉 Pressão: ${(parseInt(val) / 100).toFixed(2)} inHg`)
         .replace(/(\d{2})\/(\d{2})/, (_, t, d) => `🌡️ Temperatura: ${t}°C / Ponto de orvalho: ${d}°C`)
         .replace(/NOSIG/, "🔮 Sem mudanças significativas")
         .replace(/(-|\+)?(RA|SN|FG|BR|TS|DZ|GR)/g, (_, int, fen) => {
@@ -114,7 +121,48 @@
         .replace(/BECMG/g, "🔄 Mudança gradual esperada")
         .replace(/TEMPO/g, "🔄 Condições temporárias")
         .replace(/FM(\d{6})/g, (_, hora) => `🕒 A partir de ${hora.slice(0,2)}/${hora.slice(2,4)}:${hora.slice(4,6)} UTC`)
-        .replace(/PROB(\d{2})/g, (_, prob) => `📊 Probabilidade ${prob}%`);
+        .replace(/PROB(\d{2})/g, (_, prob) => `📊 Probabilidade ${prob}%`)
+        .replace(/RMK (.+)/, (_, rmk) => {
+          let output = "📌 Observações adicionais:\n";
+
+          if (/AO1/.test(rmk)) output += "• Estação automática sem sensor de precipitação\n";
+          if (/AO2/.test(rmk)) output += "• Estação automática com sensor de precipitação\n";
+
+          const slpMatch = rmk.match(/SLP(\d{3})/);
+          if (slpMatch) {
+            const slp = parseInt(slpMatch[1]) / 10 + 1000;
+            output += `• Pressão ao nível do mar: ${slp.toFixed(1)} hPa\n`;
+          }
+
+          const tMatch = rmk.match(/T(\d{4})(\d{4})?/);
+          if (tMatch) {
+            const tempRaw = tMatch[1];
+            const dewRaw = tMatch[2];
+            const temp = (tempRaw.startsWith("1") ? -1 : 1) * parseInt(tempRaw.slice(1)) / 10;
+            output += `• Temperatura precisa: ${temp.toFixed(1)}°C\n`;
+            if (dewRaw) {
+              const dew = (dewRaw.startsWith("1") ? -1 : 1) * parseInt(dewRaw.slice(1)) / 10;
+              output += `• Ponto de orvalho preciso: ${dew.toFixed(1)}°C\n`;
+            }
+          }
+
+          const trendMatch = rmk.match(/500(\d{2})/);
+          if (trendMatch) {
+            const code = trendMatch[1];
+            const trendMap = {
+              "00": "Pressão estável",
+              "01": "Pressão a subir rapidamente",
+              "02": "Pressão a subir lentamente",
+              "03": "Pressão a descer lentamente",
+              "04": "Pressão a descer rapidamente"
+            };
+            output += `• Tendência barométrica: ${trendMap[code] || "Código desconhecido"}\n`;
+          }
+
+          if (/\$/.test(rmk)) output += "• Manutenção necessária na estação\n";
+
+          return output.trim();
+        });
     }
   </script>
 </body>
