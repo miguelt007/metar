@@ -60,10 +60,13 @@
   <div id="panel"></div>
 
   <script>
-    const icaosDisponiveis = ["LPPT", "LPFR", "LPCS", "LPPR", "LPMR"];
-
     document.addEventListener("DOMContentLoaded", () => {
+      const icaosDisponiveis = ["LPPT", "LPFR", "LPCS", "LPPR", "LPMR"];
       const select = document.getElementById("icaoSelect");
+      if (!select) {
+        console.error("Elemento #icaoSelect não encontrado.");
+        return;
+      }
       icaosDisponiveis.forEach(icao => {
         const opt = document.createElement("option");
         opt.value = icao;
@@ -141,7 +144,6 @@
             const slp = parseInt(slpMatch[1]) / 10 + 1000;
             output += `• Pressão ao nível do mar: ${slp.toFixed(1)} hPa\n`;
           }
-
           const tMatch = rmk.match(/T(\d{4})(\d{4})?/);
           if (tMatch) {
             const tempRaw = tMatch[1];
@@ -153,7 +155,6 @@
               output += `• Ponto de orvalho preciso: ${dew.toFixed(1)}°C\n`;
             }
           }
-
           const trendMatch = rmk.match(/500(\d{2})/);
           if (trendMatch) {
             const code = trendMatch[1];
@@ -168,7 +169,6 @@
           }
 
           if (/\$/.test(rmk)) output += "• Manutenção necessária na estação\n";
-          }
 
           return output.trim();
         });
