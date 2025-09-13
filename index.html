@@ -74,6 +74,9 @@
           const direcao = p.slice(0,3);
           const velocidade = p.slice(3,5);
           resultado.push(`Vento de ${direcao}° a ${velocidade} nós.`);
+        } else if (/^VRB\d{2}KT$/.test(p)) {
+          const velocidade = p.slice(3,5);
+          resultado.push(`Vento variável a ${velocidade} nós.`);
         } else if (/^\d{4}$/.test(p)) {
           resultado.push(`Visibilidade de ${parseInt(p)} metros.`);
         } else if (/^(FEW|SCT|BKN|OVC)\d{3}$/.test(p)) {
@@ -87,6 +90,13 @@
           const intensidade = p.startsWith("+") ? "forte" : p.startsWith("-") ? "fraca" : "moderada";
           const fenomeno = { RA: "chuva", SN: "neve", FG: "nevoeiro", BR: "névoa" }[p.replace(/[-+]/, "")];
           resultado.push(`${fenomeno.charAt(0).toUpperCase() + fenomeno.slice(1)} ${intensidade}.`);
+        } else if (/^\d{2}\/\d{2}$/.test(p)) {
+          const [temp, dew] = p.split("/");
+          resultado.push(`Temperatura: ${temp}°C, Ponto de orvalho: ${dew}°C.`);
+        } else if (/^R\d{2}\/\d{4}$/.test(p)) {
+          resultado.push(`Alcance visual na pista: ${p}.`);
+        } else if (/^NOSIG$/.test(p)) {
+          resultado.push(`Sem mudanças significativas esperadas.`);
         }
       });
 
