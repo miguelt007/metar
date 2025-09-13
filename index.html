@@ -69,14 +69,14 @@
         const metarData = await metarRes.json();
         const tafData = await tafRes.json();
 
-        // METAR
+        // METAR: mostrar apenas se válido
         if (metarData.metar && !metarData.metar.includes("não disponível")) {
           document.getElementById("metar").textContent = metarData.metar;
         } else {
           document.getElementById("metar").textContent = "⚠️ Dados não encontrados.";
         }
 
-        // TAF
+        // TAF: mostrar como texto plano, sem parsing
         if (tafData.taf && !tafData.taf.includes("não disponível")) {
           document.getElementById("taf").textContent = tafData.taf;
         } else {
