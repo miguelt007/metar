@@ -8,14 +8,12 @@ on:
 jobs:
   atualizar:
     runs-on: ubuntu-latest
+
     steps:
       - name: Clonar repositório
         uses: actions/checkout@v3
 
-      - name: Instalar curl
-        run: sudo apt-get install -y curl
-
-      - name: Buscar dados e gerar JSON
+      - name: Buscar dados METAR/TAF e gerar JSON
         run: |
           mkdir -p dados
 
@@ -27,10 +25,8 @@ jobs:
             echo "{\"icao\":\"$ICAO\",\"taf\":\"$TAF\"}" > dados/taf-$ICAO.json
           done
 
-      - name: Commit e push
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add dados/*.json
-          git commit -m "Atualização automática METAR/TAF"
-          git push
+      - name: Commit e push automático
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Atualização automática METAR/TAF"
+          file_pattern: dados/*.json
