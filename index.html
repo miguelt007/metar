@@ -2,161 +2,25 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Painel METAR / TAF</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #1e1e2f;
-      color: #fff;
-      padding: 30px;
-      margin: 0;
-    }
-    h1 {
-      text-align: center;
-    }
-    input, button {
-      padding: 10px;
-      font-size: 16px;
-      border-radius: 5px;
-      border: none;
-      margin: 5px;
-    }
-    button {
-      background: #007acc;
-      color: white;
-      cursor: pointer;
-    }
-    .card {
-      background: #2e2e3e;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px #000;
-      margin-top: 20px;
-    }
-    .card.severe {
-      background: #8b0000;
-      border: 2px solid #ff4c4c;
-    }
-    .card h2 {
-      margin-top: 0;
-      font-size: 18px;
-    }
-    .card span {
-      font-size: 16px;
-      display: block;
-      margin-top: 10px;
-      white-space: pre-wrap;
-    }
-  </style>
+  <title>Teste METAR</title>
 </head>
 <body>
-  <h1>Painel METAR / TAF</h1>
-  <div style="text-align:center;">
-    <input type="text" id="icaoInput" placeholder="Escreve ICAO (ex: LPPT)">
-    <button onclick="buscarDados()">Buscar</button>
-  </div>
-  <div id="panel"></div>
+  <h1>Teste METAR LPPT</h1>
+  <button onclick="carregar()">Carregar METAR</button>
+  <pre id="saida"></pre>
 
   <script>
-    function buscarDados() {
-      const icao = document.getElementById("icaoInput").value.trim().toUpperCase();
-      if (!icao || icao.length !== 4) {
-        alert("Insere um código ICAO válido com 4 letras.");
-        return;
-      }
-
-      document.getElementById("panel").innerHTML = "<p>A carregar dados METAR/TAF...</p>";
-
-      Promise.all([
-        fetch(`dados/metar-${icao}.json`).then(res => res.ok ? res.json() : Promise.reject("METAR não disponível")),
-        fetch(`dados/taf-${icao}.json`).then(res => res.ok ? res.json() : Promise.reject("TAF não disponível"))
-      ]).then(([metarData, tafData]) => {
-        document.getElementById("panel").innerHTML = "";
-        renderCard(`🛬 METAR ${icao}`, traduzirTexto(metarData.metar), metarData.metar);
-        renderCard(`📋 TAF ${icao}`, traduzirTexto(tafData.taf), tafData.taf);
-      }).catch(err => {
-        document.getElementById("panel").innerHTML = `<p>❌ ${err} para ${icao}. Verifica se os ficheiros existem em /dados/.</p>`;
-      });
-    }
-
-    function renderCard(titulo, texto, bruto) {
-      const alerta = /TS|0000|PROB[4-9]|\$/.test(bruto);
-      const div = document.createElement("div");
-      div.className = "card" + (alerta ? " severe" : "");
-      div.innerHTML = `<h2>${titulo}</h2><span>${texto}</span>`;
-      document.getElementById("panel").appendChild(div);
-    }
-
-    function traduzirTexto(texto) {
-      if (!texto || !texto.includes("Z")) return "⚠️ Dados não encontrados.";
-
-      return texto
-        .replace(/(\d{6}Z)/, (_, zulu) => `🕒 Observado às ${zulu} (UTC)\n`)
-        .replace(/(\d{3})(\d{2})KT/, "💨 Vento de $1° a $2 nós\n")
-        .replace(/(\d{3}V\d{3})/, (_, var) => `↔️ Vento variável: ${var}\n`)
-        .replace(/CAVOK/, "🌤️ Céu limpo, visibilidade >10km\n")
-        .replace(/(\d{4})(?!\/)/, "👁️ Visibilidade: $1 metros\n")
-        .replace(/(\d{2})SM/, (_, sm) => `👁️ Visibilidade: ${sm}SM (~${(sm * 1.609).toFixed(1)} km)\n`)
-        .replace(/(FEW|SCT|BKN|OVC)(\d{3})/g, (_, tipo, alt) => {
-          const map = { FEW: "Poucas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Encoberto" };
-          return `☁️ Nuvens ${map[tipo]} a ${parseInt(alt) * 100} pés\n`;
+    function carregar() {
+      fetch("dados/metar-LPPT.json")
+        .then(res => {
+          if (!res.ok) throw new Error("Ficheiro não encontrado");
+          return res.json();
         })
-        .replace(/Q(\d{4})/, "📉 Pressão: $1 hPa\n")
-        .replace(/A(\d{4})/, (_, val) => `📉 Pressão: ${(parseInt(val) / 100).toFixed(2)} inHg\n`)
-        .replace(/(\d{2})\/(\d{2})/, (_, t, d) => `🌡️ Temperatura: ${t}°C / Ponto de orvalho: ${d}°C\n`)
-        .replace(/NOSIG/, "🔮 Sem mudanças significativas\n")
-        .replace(/(-|\+)?(RA|SN|FG|BR|TS|DZ|GR)/g, (_, int, fen) => {
-          const map = {
-            RA: "chuva", SN: "neve", FG: "nevoeiro", BR: "névoa",
-            TS: "trovoada", DZ: "chuvisco", GR: "granizo"
-          };
-          const intensidade = int === "+" ? "forte" : int === "-" ? "fraca" : "moderada";
-          return `🌧️ ${map[fen]} ${intensidade}\n`;
+        .then(data => {
+          document.getElementById("saida").textContent = data.metar || "METAR vazio";
         })
-        .replace(/BECMG/g, "🔄 Mudança gradual esperada\n")
-        .replace(/TEMPO/g, "🔄 Condições temporárias\n")
-        .replace(/FM(\d{6})/g, (_, hora) => `🕒 A partir de ${hora.slice(0,2)}/${hora.slice(2,4)}:${hora.slice(4,6)} UTC\n`)
-        .replace(/PROB(\d{2})/g, (_, prob) => `📊 Probabilidade ${prob}%\n`)
-        .replace(/RMK (.+)/, (_, rmk) => {
-          let output = "📌 Observações adicionais:\n";
-
-          if (/AO1/.test(rmk)) output += "• Estação automática sem sensor de precipitação\n";
-          if (/AO2/.test(rmk)) output += "• Estação automática com sensor de precipitação\n";
-
-          const slpMatch = rmk.match(/SLP(\d{3})/);
-          if (slpMatch) {
-            const slp = parseInt(slpMatch[1]) / 10 + 1000;
-            output += `• Pressão ao nível do mar: ${slp.toFixed(1)} hPa\n`;
-          }
-
-          const tMatch = rmk.match(/T(\d{4})(\d{4})?/);
-          if (tMatch) {
-            const tempRaw = tMatch[1];
-            const dewRaw = tMatch[2];
-            const temp = (tempRaw.startsWith("1") ? -1 : 1) * parseInt(tempRaw.slice(1)) / 10;
-            output += `• Temperatura precisa: ${temp.toFixed(1)}°C\n`;
-            if (dewRaw) {
-              const dew = (dewRaw.startsWith("1") ? -1 : 1) * parseInt(dewRaw.slice(1)) / 10;
-              output += `• Ponto de orvalho preciso: ${dew.toFixed(1)}°C\n`;
-            }
-          }
-
-          const trendMatch = rmk.match(/500(\d{2})/);
-          if (trendMatch) {
-            const code = trendMatch[1];
-            const trendMap = {
-              "00": "Pressão estável",
-              "01": "Pressão a subir rapidamente",
-              "02": "Pressão a subir lentamente",
-              "03": "Pressão a descer lentamente",
-              "04": "Pressão a descer rapidamente"
-            };
-            output += `• Tendência barométrica: ${trendMap[code] || "Código desconhecido"}\n`;
-          }
-
-          if (/\$/.test(rmk)) output += "• Manutenção necessária na estação\n";
-
-          return output.trim();
+        .catch(err => {
+          document.getElementById("saida").textContent = "❌ Erro: " + err.message;
         });
     }
   </script>
