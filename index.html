@@ -3,35 +3,56 @@
 <head>
   <meta charset="UTF-8">
   <title>Painel METAR / TAF</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       font-family: Arial, sans-serif;
       background: #f4f4f4;
       padding: 20px;
-      max-width: 800px;
       margin: auto;
+      max-width: 800px;
     }
     h1 {
       color: #333;
+      font-size: 1.8em;
+      text-align: center;
     }
     select {
       font-size: 16px;
-      padding: 5px;
+      padding: 8px;
       margin-top: 10px;
-    }
-    pre {
-      background: #fff;
-      padding: 10px;
-      border: 1px solid #ccc;
-      white-space: pre-wrap;
+      width: 100%;
+      max-width: 400px;
     }
     .section {
       margin-top: 30px;
+    }
+    pre {
+      background: #fff;
+      padding: 12px;
+      border: 1px solid #ccc;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-size: 15px;
     }
     .timestamp {
       font-size: 14px;
       color: #666;
       margin-top: 5px;
+    }
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+      h1 {
+        font-size: 1.4em;
+      }
+      select {
+        font-size: 15px;
+      }
+      pre {
+        font-size: 14px;
+      }
     }
   </style>
 </head>
@@ -39,21 +60,7 @@
   <h1>🛫 Painel METAR / TAF</h1>
 
   <label for="icao">Seleciona o aeroporto:</label>
-  <select id="icao" onchange="carregarDados(this.value)">
-    <option value="LPPT">LPPT - Lisboa</option>
-    <option value="LPFR">LPFR - Faro</option>
-    <option value="LPPR">LPPR - Porto</option>
-    <option value="LPCS">LPCS - Cascais</option>
-    <option value="LPMR">LPMR - Monte Real</option>
-    <option value="LPPD">LPPD - Ponta Delgada</option>
-    <option value="LPLA">LPLA - Lajes</option>
-    <option value="LPSJ">LPSJ - São Jorge</option>
-    <option value="LPMA">LPMA - Madeira</option>
-    <option value="LPPS">LPPS - Porto Santo</option>
-    <option value="KJFK">KJFK - New York</option>
-    <option value="KLAX">KLAX - Los Angeles</option>
-    <option value="KORD">KORD - Chicago</option>
-  </select>
+  <select id="icao"></select>
 
   <div class="section">
     <h2>🛬 METAR</h2>
@@ -68,8 +75,51 @@
   </div>
 
   <script>
+    async function carregarListaICAO() {
+      try {
+        const res = await fetch("dados/icao-lista.json?" + Date.now());
+        const lista = await res.json();
+
+        const select = document.getElementById("icao");
+        select.innerHTML = "";
+
+        lista.forEach(icao => {
+          const opt = document.createElement("option");
+          opt.value = icao;
+          opt.textContent = `${icao} - ${nomeAeroporto(icao)}`;
+          select.appendChild(opt);
+        });
+
+        select.onchange = () => carregarDados(select.value);
+        carregarDados(lista[0]);
+      } catch (error) {
+        console.error("Erro ao carregar lista de ICAOs:", error);
+        document.getElementById("icao").innerHTML = "<option>Erro ao carregar ICAOs</option>";
+      }
+    }
+
+    function nomeAeroporto(icao) {
+      const nomes = {
+        LPPT: "Lisboa",
+        LPFR: "Faro",
+        LPPR: "Porto",
+        LPCS: "Cascais",
+        LPMR: "Monte Real",
+        LPPD: "Ponta Delgada",
+        LPSJ: "São Jorge",
+        LPLA: "Lajes",
+        LPMA: "Madeira",
+        LPPS: "Porto Santo",
+        LPAZ: "Santa Maria",
+        KJFK: "New York",
+        KLAX: "Los Angeles",
+        KORD: "Chicago"
+      };
+      return nomes[icao] || "Desconhecido";
+    }
+
     async function carregarDados(icao) {
-      const cacheBuster = new Date().getTime();
+      const cacheBuster = Date.now();
 
       try {
         const metarRes = await fetch(`dados/metar-${icao}.json?${cacheBuster}`);
@@ -112,8 +162,7 @@
       }
     }
 
-    // Carregamento inicial
-    carregarDados("LPPT");
+    carregarListaICAO();
   </script>
 </body>
 </html>
