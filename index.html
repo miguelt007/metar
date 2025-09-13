@@ -82,8 +82,8 @@
       document.getElementById("panel").innerHTML = "<p>A carregar dados METAR/TAF...</p>";
 
       Promise.all([
-        fetch(`metar-${icao}.json`).then(res => res.json()),
-        fetch(`taf-${icao}.json`).then(res => res.json())
+        fetch(`dados/metar-${icao}.json`).then(res => res.json()),
+        fetch(`dados/taf-${icao}.json`).then(res => res.json())
       ]).then(([metarData, tafData]) => {
         renderCard(`🛬 METAR ${icao}`, traduzirTexto(metarData.metar), metarData.metar);
         renderCard(`📋 TAF ${icao}`, traduzirTexto(tafData.taf), tafData.taf);
