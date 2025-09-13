@@ -58,7 +58,6 @@
     }
 
     function traduzirTexto(texto) {
-      // Extrai data/hora UTC do METAR (ex: 130030Z → dia 13, 00:30 UTC)
       const horaMatch = texto.match(/(\d{2})(\d{2})(\d{2})Z/);
       let horaLocal = "";
       if (horaMatch) {
@@ -69,18 +68,18 @@
         const dataUTC = new Date(Date.UTC(ano, mes, parseInt(dia), parseInt(hora), parseInt(minuto)));
         horaLocal = new Intl.DateTimeFormat('pt-PT', {
           timeZone: 'Europe/Lisbon',
-          hour: '2-digit',
-          minute: '2-digit',
           day: '2-digit',
-          month: '2-digit'
-        }).format(dataUTC);
+          month: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        }).format(dataUTC); // ex: "13/09, 01:30"
       }
 
       return texto
         .replace(/(\d{6}Z)/, `🕒 Observado às ${horaLocal} (hora local)`)
         .replace(/(\d{3})(\d{2})KT/, "💨 Vento de $1° a $2 nós")
         .replace(/CAVOK/, "🌤️ Céu limpo, visibilidade >10km")
-        .replace(/(\d{4})(?!\/)/, "👁️ Visibilidade: $1 metros") // evita capturar 18/14
+        .replace(/(\d{4})(?!\/)/, "👁️ Visibilidade: $1 metros")
         .replace(/(FEW|SCT|BKN|OVC)(\d{3})/g, (_, tipo, alt) => {
           const map = { FEW: "Poucas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Encoberto" };
           return `☁️ Nuvens ${map[tipo]} a ${parseInt(alt) * 100} pés`;
