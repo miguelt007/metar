@@ -81,7 +81,7 @@
         renderCard(`🛬 METAR ${icao}`, traduzirTexto(metarRaw), metarRaw);
         renderCard(`📋 TAF ${icao}`, traduzirTexto(tafRaw), tafRaw);
       }).catch(err => {
-        document.getElementById("panel").innerHTML = `<p>❌ Erro ao obter dados: ${err}</p>`;
+        document.getElementById("panel").innerHTML = `<p>❌ Erro ao obter dados para ${icao}: ${err}</p>`;
       });
     }
 
