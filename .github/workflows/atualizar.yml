@@ -13,13 +13,12 @@ jobs:
       - name: Clonar repositório
         uses: actions/checkout@v3
 
-      - name: Atualizar ficheiros JSON existentes
+      - name: Atualizar ficheiros JSON com base em config/icaos.csv
         run: |
-          echo "📁 Conteúdo atual da pasta dados:"
           mkdir -p dados
-          ls -lh dados/ || true
 
-          ICAOS="LPPT LPFR LPPR LPCS LPMR LPPD LPLA LPAZ LPSJ LPPS LPMA KJFK KLAX KORD"
+          echo "🔄 A carregar ICAOs a partir de config/icaos.csv..."
+          ICAOS=$(tail -n +2 config/icaos.csv | cut -d',' -f1)
 
           for ICAO in $ICAOS; do
             echo "🔄 A atualizar $ICAO..."
@@ -32,21 +31,21 @@ jobs:
 
             TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-            echo "📄 METAR para $ICAO: $METAR"
-            echo "📄 TAF para $ICAO: $TAF"
-            echo "🕒 Timestamp: $TIMESTAMP"
-
             echo "{\"icao\":\"$ICAO\",\"metar\":\"$METAR\",\"updated\":\"$TIMESTAMP\"}" > dados/metar-$ICAO.json
             echo "{\"icao\":\"$ICAO\",\"taf\":\"$TAF\",\"updated\":\"$TIMESTAMP\"}" > dados/taf-$ICAO.json
           done
 
-          echo "🧩 Gerando lista de ICAOs disponíveis..."
+          echo "🧩 Gerando lista de ICAOs..."
           ICAO_LIST=$(ls dados/metar-*.json | sed 's|dados/metar-||;s|\.json||' | jq -R -s -c 'split("\n") | map(select(length > 0))')
           echo "$ICAO_LIST" > dados/icao-lista.json
-          echo "✅ ICAOs disponíveis: $ICAO_LIST"
+
+          echo "🧩 Gerando mapa de nomes..."
+          tail -n +2 config/icaos.csv | jq -Rn '
+            [inputs | split(",")] | map({(.[0]): .[1]}) | add
+          ' > dados/icao-nomes.json
 
       - name: Commit e push automático
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Atualização automática METAR/TAF + lista de ICAOs"
+          commit_message: "Atualização automática METAR/TAF + ICAOs dinâmicos"
           file_pattern: dados/*.json
