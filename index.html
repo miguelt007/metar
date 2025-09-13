@@ -174,6 +174,7 @@
         .replace(/TN(\d{2})\/(\d{4})Z/, "Temp mínima: $1°C às $2 UTC")
         .replace(/VRB(\d{2})KT/, "Vento variável a $1 nós")
         .replace(/(\d{3})(\d{2})KT/, "Vento: $1° a $2 nós")
+        .replace(/(\d{3})V(\d{3})/, "Variação de vento entre $1° e $2°")
         .replace(/9999/, "Visibilidade ≥10 km")
         .replace(/CAVOK/, "Condições visuais excelentes (CAVOK)")
         .replace(/(FEW|SCT|BKN|OVC)(\d{3})/g, (_, tipo, altura) => {
