@@ -18,11 +18,11 @@ jobs:
           echo "📁 Conteúdo atual da pasta dados:"
           ls -lh dados/
 
-          for ICAO in LPPT LPFR LPPR LPCS LPMR LPPD KJFK KLAX KORD; do
+          for ICAO in LPPT LPFR LPPR LPCS LPMR LPPD LPSJ LPAV LPVZ LPMA KJFK KLAX KORD; do
             echo "🔄 A atualizar $ICAO..."
 
-            METAR=$(curl -s "https://tgftp.nws.noaa.gov/data/observations/metar/stations/${ICAO}.TXT" | grep "^METAR")
-            TAF=$(curl -s "https://tgftp.nws.noaa.gov/data/forecasts/taf/stations/${ICAO}.TXT" | grep "^TAF")
+            METAR=$(curl -s "https://tgftp.nws.noaa.gov/data/observations/metar/stations/${ICAO}.TXT" | grep "^METAR" || true)
+            TAF=$(curl -s "https://tgftp.nws.noaa.gov/data/forecasts/taf/stations/${ICAO}.TXT" | grep "^TAF" || true)
 
             [ -z "$METAR" ] && METAR="METAR não disponível para ${ICAO}"
             [ -z "$TAF" ] && TAF="TAF não disponível para ${ICAO}"
