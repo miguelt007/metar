@@ -81,7 +81,7 @@
         const taf = html.match(new RegExp(`TAF\\s+${icao}[^<]*`))?.[0] || "TAF não encontrado.";
         const sigmet = html.match(/SIGMET[^<]*/)?.[0] || "SIGMET não encontrado.";
 
-        renderCard("🛬 METAR", traduzirTexto(metar), metar.includes("+RA") || metar.includes("TS"));
+        renderCard("🛬 METAR", traduzirTexto(metar), metar.includes("+RA") || metar.includes("TS") || metar.includes("1300"));
         renderCard("📋 TAF", traduzirTexto(taf), taf.includes("TS") || taf.includes("BKN"));
         renderCard("⚠️ SIGMET", sigmet, sigmet.includes("SEV TURB") || sigmet.includes("SEV ICE"));
       } catch (err) {
@@ -98,11 +98,13 @@
     }
 
     function traduzirTexto(texto) {
+      texto = texto.replace(/(\d{4})\s*(\d{2})Z/, (_, vis, hora) => {
+        return `👁️ Visibilidade: ${vis} metros\n🕒 Observado às ${hora}Z`;
+      });
+
       return texto
-        .replace(/(\d{6}Z)/, "🕒 Observado às $1")
         .replace(/(\d{3})(\d{2})KT/, "💨 Vento de $1° a $2 nós")
         .replace(/CAVOK/, "🌤️ Céu limpo, visibilidade >10km")
-        .replace(/(\d{4})/, "👁️ Visibilidade: $1 metros")
         .replace(/(FEW|SCT|BKN|OVC)(\d{3})/, (_, tipo, alt) => {
           const map = { FEW: "Poucas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Encoberto" };
           return `☁️ Nuvens ${map[tipo]} a ${parseInt(alt) * 100} pés`;
