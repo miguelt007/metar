@@ -2,13 +2,13 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>METAR Viewer</title>
+  <title>METAR Traduzido</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       background: #f4f4f4;
       padding: 30px;
-      max-width: 600px;
+      max-width: 700px;
       margin: auto;
     }
     h1 {
@@ -19,22 +19,26 @@
       font-size: 16px;
       margin-top: 10px;
     }
-    #metar {
+    #metar, #traducao {
       margin-top: 20px;
       background: #fff;
       padding: 15px;
       border-radius: 8px;
       box-shadow: 0 0 10px #ccc;
     }
+    #traducao {
+      background: #e8f5e9;
+    }
   </style>
 </head>
 <body>
-  <h1>Consulta METAR</h1>
+  <h1>Consulta METAR com Tradução</h1>
   <label for="icao">Código ICAO do aeroporto:</label><br>
   <input type="text" id="icao" value="LPPT" />
   <button onclick="getMetar()">Buscar METAR</button>
 
   <div id="metar">Insira um código ICAO e clique em "Buscar METAR".</div>
+  <div id="traducao"></div>
 
   <script>
     async function getMetar() {
@@ -49,10 +53,44 @@
         const match = xml.match(/<raw_text>(.*?)<\/raw_text>/);
         const metar = match ? match[1] : "METAR não encontrado.";
         document.getElementById('metar').innerText = metar;
+        document.getElementById('traducao').innerText = traduzirMetar(metar);
       } catch (error) {
         document.getElementById('metar').innerText = "Erro ao buscar dados.";
+        document.getElementById('traducao').innerText = "";
         console.error("Erro:", error);
       }
+    }
+
+    function traduzirMetar(metar) {
+      if (!metar || metar === "METAR não encontrado.") return "";
+
+      const partes = metar.split(" ");
+      let resultado = [];
+
+      partes.forEach(p => {
+        if (/^\d{6}Z$/.test(p)) {
+          resultado.push(`Observado às ${p.slice(2,4)}:${p.slice(4,6)} UTC no dia ${p.slice(0,2)}.`);
+        } else if (/^\d{3}\d{2}KT$/.test(p)) {
+          const direcao = p.slice(0,3);
+          const velocidade = p.slice(3,5);
+          resultado.push(`Vento de ${direcao}° a ${velocidade} nós.`);
+        } else if (/^\d{4}$/.test(p)) {
+          resultado.push(`Visibilidade de ${parseInt(p)} metros.`);
+        } else if (/^(FEW|SCT|BKN|OVC)\d{3}$/.test(p)) {
+          const cobertura = { FEW: "Poucas nuvens", SCT: "Nuvens dispersas", BKN: "Nuvens fragmentadas", OVC: "Céu encoberto" };
+          const tipo = p.slice(0,3);
+          const altura = parseInt(p.slice(3)) * 100;
+          resultado.push(`${cobertura[tipo]} a ${altura} pés.`);
+        } else if (/^Q\d{4}$/.test(p)) {
+          resultado.push(`Pressão atmosférica de ${p.slice(1)} hPa.`);
+        } else if (/^(-|\+)?(RA|SN|FG|BR)$/.test(p)) {
+          const intensidade = p.startsWith("+") ? "forte" : p.startsWith("-") ? "fraca" : "moderada";
+          const fenomeno = { RA: "chuva", SN: "neve", FG: "nevoeiro", BR: "névoa" }[p.replace(/[-+]/, "")];
+          resultado.push(`${fenomeno.charAt(0).toUpperCase() + fenomeno.slice(1)} ${intensidade}.`);
+        }
+      });
+
+      return resultado.join(" ");
     }
   </script>
 </body>
