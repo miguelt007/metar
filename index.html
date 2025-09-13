@@ -91,11 +91,18 @@
       const horaMatch = texto.match(/(\d{2})(\d{2})(\d{2})Z/);
       let horaLocal = "";
       if (horaMatch) {
-        const [_, dia, hora, minuto] = horaMatch;
-        const now = new Date();
-        const ano = now.getUTCFullYear();
-        const mes = now.getUTCMonth();
-        const dataUTC = new Date(Date.UTC(ano, mes, parseInt(dia), parseInt(hora), parseInt(minuto)));
+        const [_, diaStr, horaStr, minutoStr] = horaMatch;
+        const dia = parseInt(diaStr);
+        const hora = parseInt(horaStr);
+        const minuto = parseInt(minutoStr);
+
+        const agora = new Date();
+        const ano = agora.getUTCFullYear();
+        const mes = agora.getUTCMonth();
+        const diaAtual = agora.getUTCDate();
+        const mesCorrigido = dia > diaAtual ? mes - 1 : mes;
+
+        const dataUTC = new Date(Date.UTC(ano, mesCorrigido, dia, hora, minuto));
         horaLocal = new Intl.DateTimeFormat('pt-PT', {
           timeZone: 'Europe/Lisbon',
           day: '2-digit',
@@ -107,7 +114,9 @@
 
       return texto
         .replace(/(\d{6}Z)/, (_, zulu) => {
-          return horaLocal ? `🕒 Observado às ${horaLocal} (hora local)` : `🕒 Observado às ${zulu} (UTC)`;
+          return horaLocal
+            ? `🕒 Observado às ${horaLocal} (hora local)`
+            : `🕒 Observado às ${zulu} (UTC)`;
         })
         .replace(/(\d{3})(\d{2})KT/, "💨 Vento de $1° a $2 nós")
         .replace(/CAVOK/, "🌤️ Céu limpo, visibilidade >10km")
