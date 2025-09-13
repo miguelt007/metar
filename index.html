@@ -2,26 +2,83 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Teste METAR</title>
+  <title>Painel METAR / TAF</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #1e1e2f;
+      color: #fff;
+      padding: 20px;
+    }
+    input, button {
+      padding: 10px;
+      font-size: 16px;
+      margin: 5px;
+      border-radius: 5px;
+      border: none;
+    }
+    button {
+      background: #007acc;
+      color: white;
+    }
+    .card {
+      background: #2e2e3e;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 15px;
+    }
+    .card.severe {
+      background: #8b0000;
+    }
+    pre {
+      white-space: pre-wrap;
+    }
+  </style>
 </head>
 <body>
-  <h1>Teste METAR LPPT</h1>
-  <button onclick="carregar()">Carregar METAR</button>
-  <pre id="saida"></pre>
+  <h2>Painel METAR / TAF</h2>
+  <input type="text" id="icaoInput" placeholder="Escreve ICAO (ex: LPPT)">
+  <button onclick="buscar()">Buscar</button>
+  <div id="panel"></div>
 
   <script>
-    function carregar() {
-      fetch("dados/metar-LPPT.json")
-        .then(res => {
-          if (!res.ok) throw new Error("Ficheiro não encontrado");
-          return res.json();
-        })
-        .then(data => {
-          document.getElementById("saida").textContent = data.metar || "METAR vazio";
-        })
-        .catch(err => {
-          document.getElementById("saida").textContent = "❌ Erro: " + err.message;
-        });
+    function buscar() {
+      const icao = document.getElementById("icaoInput").value.trim().toUpperCase();
+      if (icao.length !== 4) {
+        alert("Insere um ICAO válido com 4 letras.");
+        return;
+      }
+
+      document.getElementById("panel").innerHTML = "<p>A carregar...</p>";
+
+      Promise.all([
+        fetch(`dados/metar-${icao}.json`).then(r => r.ok ? r.json() : Promise.reject("METAR não disponível")),
+        fetch(`dados/taf-${icao}.json`).then(r => r.ok ? r.json() : Promise.reject("TAF não disponível"))
+      ]).then(([metar, taf]) => {
+        document.getElementById("panel").innerHTML = "";
+        mostrar("🛬 METAR", metar.metar);
+        mostrar("📋 TAF", taf.taf);
+      }).catch(err => {
+        document.getElementById("panel").innerHTML = `<p>❌ ${err} para ${icao}</p>`;
+      });
+    }
+
+    function mostrar(titulo, texto) {
+      const alerta = /TS|0000|PROB[4-9]|\$/.test(texto);
+      const div = document.createElement("div");
+      div.className = "card" + (alerta ? " severe" : "");
+      div.innerHTML = `<strong>${titulo}</strong><pre>${traduzir(texto)}</pre>`;
+      document.getElementById("panel").appendChild(div);
+    }
+
+    function traduzir(t) {
+      if (!t || !t.includes("Z")) return "⚠️ Dados não encontrados.";
+      return t
+        .replace(/(\d{6}Z)/, "🕒 $1\n")
+        .replace(/(\d{3})(\d{2})KT/, "💨 Vento $1° a $2 nós\n")
+        .replace(/CAVOK/, "🌤️ Céu limpo\n")
+        .replace(/Q(\d{4})/, "📉 Pressão: $1 hPa\n")
+        .replace(/RMK (.+)/, "📌 RMK: $1\n");
     }
   </script>
 </body>
