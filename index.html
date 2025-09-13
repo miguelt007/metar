@@ -169,7 +169,8 @@
 
     function descodificarMETAR(metar) {
       if (!metar) return "";
-      return metar
+
+      let texto = metar
         .replace(/(\d{4})Z/, "Hora UTC: $1")
         .replace(/(\d{3})(\d{2})KT/, "Vento: $1° a $2 nós")
         .replace(/(\d{2})\/(\d{2})/, "Temperatura: $1°C / Ponto de orvalho: $2°C")
@@ -177,6 +178,27 @@
         .replace(/(FEW|SCT|BKN|OVC)(\d{3})/, (_, tipo, altura) => {
           const mapa = { FEW: "Poucas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Cobertura total" };
           return `${mapa[tipo]} nuvens a ${altura * 30} pés`;
+        });
+
+      const rmkMatch = metar.match(/RMK (.+)/);
+      if (rmkMatch) {
+        const rmk = rmkMatch[1];
+        texto += `\nObservações (RMK): ${descodificarRMK(rmk)}`;
+      }
+
+      return texto;
+    }
+
+    function descodificarRMK(rmk) {
+      return rmk
+        .replace(/R(\d{2})\/(\d{2})/, "Condição da pista $1: $2")
+        .replace(/WS/, "Wind shear detectado")
+        .replace(/AUTO/, "Observação automática")
+        .replace(/SLP(\d{3})/, "Pressão ao nível do mar: SLP$1")
+        .replace(/T(\d{4})/, (_, t) => {
+          const temp = parseInt(t.slice(0, 2), 10) / 10;
+          const dew = parseInt(t.slice(2, 4), 10) / 10;
+          return `Temp detalhada: ${temp}°C / Ponto de orvalho: ${dew}°C`;
         });
     }
 
