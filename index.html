@@ -77,17 +77,30 @@
         const data = await res.json();
         const html = data.contents;
 
-        const metar = html.match(new RegExp(`METAR\\s+${icao}[^<]*`))?.[0] || "METAR não encontrado.";
-        const taf = html.match(new RegExp(`TAF\\s+${icao}[^<]*`))?.[0] || "TAF não encontrado.";
-        const sigmet = html.match(/SIGMET[^<]*/)?.[0] || "SIGMET não encontrado.";
+        const metarRaw = html.match(new RegExp(`METAR\\s+${icao}[^<]*`))?.[0] || "METAR não encontrado.";
+        const tafRaw = html.match(new RegExp(`TAF\\s+${icao}[^<]*`))?.[0] || "TAF não encontrado.";
+        const sigmetRaw = html.match(/SIGMET[^<]*/)?.[0] || "SIGMET não encontrado.";
+
+        const metar = prepararTexto(metarRaw);
+        const taf = prepararTexto(tafRaw);
 
         renderCard("🛬 METAR", traduzirTexto(metar), metar.includes("+RA") || metar.includes("TS") || metar.includes("1300"));
-        renderCard("📋 TAF", traduzirTexto(taf), taf.includes("TS") || taf.includes("BKN"));
-        renderCard("⚠️ SIGMET", sigmet, sigmet.includes("SEV TURB") || sigmet.includes("SEV ICE"));
+        renderCard("📋 TAF", traduzirTexto(taf), taf.includes("TS") || taf.includes("BKN") || taf.includes("PROB"));
+        renderCard("⚠️ SIGMET", sigmetRaw, sigmetRaw.includes("SEV TURB") || sigmetRaw.includes("SEV ICE"));
       } catch (err) {
         document.getElementById("panel").innerHTML = "<div class='card severe'><h2>Erro</h2><span>Não foi possível obter dados do IPMA.</span></div>";
         console.error(err);
       }
+    }
+
+    function prepararTexto(texto) {
+      return texto
+        .replace(/\s+/g, " ")
+        .replace(/(\d{4})(\d{2}Z)/g, "$1 $2")
+        .replace(/(\d{2})\/(\d{2})/g, " $1/$2 ")
+        .replace(/(FEW|SCT|BKN|OVC)(\d{3})/g, "$1 $2")
+        .replace(/(Q)(\d{4})/g, "$1 $2")
+        .trim();
     }
 
     function renderCard(titulo, texto, severo = false) {
@@ -98,25 +111,27 @@
     }
 
     function traduzirTexto(texto) {
-      texto = texto.replace(/(\d{4})\s*(\d{2})Z/, (_, vis, hora) => {
-        return `👁️ Visibilidade: ${vis} metros\n🕒 Observado às ${hora}Z`;
-      });
-
       return texto
-        .replace(/(\d{3})(\d{2})KT/, "💨 Vento de $1° a $2 nós")
+        .replace(/(\d{6}Z)/, "🕒 Observado às $1")
+        .replace(/(\d{3}) (\d{2})KT/, "💨 Vento de $1° a $2 nós")
         .replace(/CAVOK/, "🌤️ Céu limpo, visibilidade >10km")
-        .replace(/(FEW|SCT|BKN|OVC)(\d{3})/, (_, tipo, alt) => {
+        .replace(/(\d{4})/, "👁️ Visibilidade: $1 metros")
+        .replace(/(FEW|SCT|BKN|OVC) (\d{3})/g, (_, tipo, alt) => {
           const map = { FEW: "Poucas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Encoberto" };
           return `☁️ Nuvens ${map[tipo]} a ${parseInt(alt) * 100} pés`;
         })
-        .replace(/Q(\d{4})/, "📉 Pressão: $1 hPa")
+        .replace(/Q (\d{4})/, "📉 Pressão: $1 hPa")
         .replace(/(\d{2})\/(\d{2})/, "🌡️ Temperatura: $1°C / Ponto de orvalho: $2°C")
         .replace(/NOSIG/, "🔮 Sem mudanças significativas")
         .replace(/(-|\+)?(RA|SN|FG|BR|TS|DZ|GR)/g, (_, int, fen) => {
           const map = { RA: "chuva", SN: "neve", FG: "nevoeiro", BR: "névoa", TS: "trovoada", DZ: "chuvisco", GR: "granizo" };
           const intensidade = int === "+" ? "forte" : int === "-" ? "fraca" : "moderada";
           return `🌧️ ${map[fen]} ${intensidade}`;
-        });
+        })
+        .replace(/BECMG/g, "🔄 Mudança gradual esperada")
+        .replace(/TEMPO/g, "🔄 Condições temporárias")
+        .replace(/FM(\d{6})/g, (_, hora) => `🕒 A partir de ${hora.slice(0,2)}/${hora.slice(2,4)}:${hora.slice(4,6)} UTC`)
+        .replace(/PROB(\d{2})/g, (_, prob) => `📊 Probabilidade ${prob}%`);
     }
   </script>
 </body>
