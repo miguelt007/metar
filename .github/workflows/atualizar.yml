@@ -18,17 +18,12 @@ jobs:
           mkdir -p dados
 
           for ICAO in LPPT LPFR LPPR LPCS LPMR LPPD LPSJ LPAV LPVZ; do
-            METAR=$(curl -s "https://tgftp.nws.noaa.gov/data/observations/metar/stations/${ICAO}.TXT" | tail -n1)
-            TAF=$(curl -s "https://tgftp.nws.noaa.gov/data/forecasts/taf/stations/${ICAO}.TXT" | tail -n1)
+            METAR=$(curl -s "https://tgftp.nws.noaa.gov/data/observations/metar/stations/${ICAO}.TXT" | grep "^METAR")
+            TAF=$(curl -s "https://tgftp.nws.noaa.gov/data/forecasts/taf/stations/${ICAO}.TXT" | grep "^TAF")
 
             # Verificação de conteúdo
-            if [ -z "$METAR" ]; then
-              METAR="METAR não disponível para ${ICAO}"
-            fi
-
-            if [ -z "$TAF" ]; then
-              TAF="TAF não disponível para ${ICAO}"
-            fi
+            if [ -z "$METAR" ]; then METAR="METAR não disponível para ${ICAO}"; fi
+            if [ -z "$TAF" ]; then TAF="TAF não disponível para ${ICAO}"; fi
 
             echo "{\"icao\":\"$ICAO\",\"metar\":\"$METAR\"}" > dados/metar-$ICAO.json
             echo "{\"icao\":\"$ICAO\",\"taf\":\"$TAF\"}" > dados/taf-$ICAO.json
