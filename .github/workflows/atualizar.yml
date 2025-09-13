@@ -13,33 +13,25 @@ jobs:
       - name: Clonar repositório
         uses: actions/checkout@v3
 
-      - name: Buscar dados METAR/TAF e gerar JSON
+      - name: Atualizar ficheiros JSON existentes
         run: |
-          mkdir -p dados
-          rm -f dados/*.json
+          echo "📁 Conteúdo atual da pasta dados:"
+          ls -lh dados/
 
-          for ICAO in LPPT LPFR LPPR LPCS LPMR LPPD LPSJ LPAV LPVZ KJFK KLAX KORD; do
-            echo "🔄 A processar $ICAO..."
+          for ICAO in LPPT LPFR LPPR LPCS LPMR LPPD KJFK KLAX KORD; do
+            echo "🔄 A atualizar $ICAO..."
 
             METAR=$(curl -s "https://tgftp.nws.noaa.gov/data/observations/metar/stations/${ICAO}.TXT" | grep "^METAR")
             TAF=$(curl -s "https://tgftp.nws.noaa.gov/data/forecasts/taf/stations/${ICAO}.TXT" | grep "^TAF")
 
-            # Verificação de conteúdo
-            if [ -z "$METAR" ]; then
-              METAR="METAR não disponível para ${ICAO}"
-              echo "⚠️ METAR vazio para $ICAO"
-            fi
-
-            if [ -z "$TAF" ]; then
-              TAF="TAF não disponível para ${ICAO}"
-              echo "⚠️ TAF vazio para $ICAO"
-            fi
+            [ -z "$METAR" ] && METAR="METAR não disponível para ${ICAO}"
+            [ -z "$TAF" ] && TAF="TAF não disponível para ${ICAO}"
 
             echo "{\"icao\":\"$ICAO\",\"metar\":\"$METAR\"}" > dados/metar-$ICAO.json
             echo "{\"icao\":\"$ICAO\",\"taf\":\"$TAF\"}" > dados/taf-$ICAO.json
           done
 
-          echo "✅ Ficheiros gerados:"
+          echo "✅ Ficheiros atualizados:"
           ls -lh dados/
 
       - name: Commit e push automático
