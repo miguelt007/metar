@@ -4,12 +4,37 @@
   <meta charset="UTF-8">
   <title>Painel METAR / TAF</title>
   <style>
-    body { font-family: 'Segoe UI', sans-serif; background: #1e1e2f; color: #fff; padding: 30px; margin: 0; }
-    h1 { text-align: center; }
-    .card { background: #2e2e3e; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px #000; margin-top: 20px; }
-    .card.severe { background: #8b0000; border: 2px solid #ff4c4c; }
-    .card h2 { margin-top: 0; font-size: 18px; }
-    .card span { font-size: 16px; display: block; margin-top: 10px; white-space: pre-wrap; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #1e1e2f;
+      color: #fff;
+      padding: 30px;
+      margin: 0;
+    }
+    h1 {
+      text-align: center;
+    }
+    .card {
+      background: #2e2e3e;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px #000;
+      margin-top: 20px;
+    }
+    .card.severe {
+      background: #8b0000;
+      border: 2px solid #ff4c4c;
+    }
+    .card h2 {
+      margin-top: 0;
+      font-size: 18px;
+    }
+    .card span {
+      font-size: 16px;
+      display: block;
+      margin-top: 10px;
+      white-space: pre-wrap;
+    }
   </style>
 </head>
 <body>
@@ -21,7 +46,7 @@
       fetch("metar.json").then(res => res.json()),
       fetch("taf.json").then(res => res.json())
     ]).then(([metarData, tafData]) => {
-      renderCard(`🛬 METAR ${metarData.icao}`, traduzirTexto(metarData.metar), metarData.metar.includes("+RA") || metarData.metar.includes("TS") || metarData.metar.includes("1300"));
+      renderCard(`🛬 METAR ${metarData.icao}`, traduzirTexto(metarData.metar), metarData.metar.includes("+RA") || metarData.metar.includes("TS") || metarData.metar.includes("0000"));
       renderCard(`📋 TAF ${tafData.icao}`, traduzirTexto(tafData.taf), tafData.taf.includes("TS") || tafData.taf.includes("PROB"));
     });
 
@@ -44,7 +69,6 @@
         const dataUTC = new Date(Date.UTC(ano, mes, parseInt(dia), parseInt(hora), parseInt(minuto)));
         horaLocal = new Intl.DateTimeFormat('pt-PT', {
           timeZone: 'Europe/Lisbon',
-          weekday: 'short',
           hour: '2-digit',
           minute: '2-digit',
           day: '2-digit',
@@ -56,16 +80,19 @@
         .replace(/(\d{6}Z)/, `🕒 Observado às ${horaLocal} (hora local)`)
         .replace(/(\d{3})(\d{2})KT/, "💨 Vento de $1° a $2 nós")
         .replace(/CAVOK/, "🌤️ Céu limpo, visibilidade >10km")
-        .replace(/(\d{4})/, "👁️ Visibilidade: $1 metros")
+        .replace(/(\d{4})(?!\/)/, "👁️ Visibilidade: $1 metros") // evita capturar 18/14
         .replace(/(FEW|SCT|BKN|OVC)(\d{3})/g, (_, tipo, alt) => {
           const map = { FEW: "Poucas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Encoberto" };
           return `☁️ Nuvens ${map[tipo]} a ${parseInt(alt) * 100} pés`;
         })
         .replace(/Q(\d{4})/, "📉 Pressão: $1 hPa")
-        .replace(/(\d{2})\/(\d{2})/, "🌡️ Temperatura: $1°C / Ponto de orvalho: $2°C")
+        .replace(/(\d{2})\/(\d{2})/, (_, t, d) => `🌡️ Temperatura: ${t}°C / Ponto de orvalho: ${d}°C`)
         .replace(/NOSIG/, "🔮 Sem mudanças significativas")
         .replace(/(-|\+)?(RA|SN|FG|BR|TS|DZ|GR)/g, (_, int, fen) => {
-          const map = { RA: "chuva", SN: "neve", FG: "nevoeiro", BR: "névoa", TS: "trovoada", DZ: "chuvisco", GR: "granizo" };
+          const map = {
+            RA: "chuva", SN: "neve", FG: "nevoeiro", BR: "névoa",
+            TS: "trovoada", DZ: "chuvisco", GR: "granizo"
+          };
           const intensidade = int === "+" ? "forte" : int === "-" ? "fraca" : "moderada";
           return `🌧️ ${map[fen]} ${intensidade}`;
         })
