@@ -106,7 +106,9 @@
       }
 
       return texto
-        .replace(/(\d{6}Z)/, `🕒 Observado às ${horaLocal} (hora local)`)
+        .replace(/(\d{6}Z)/, (_, zulu) => {
+          return horaLocal ? `🕒 Observado às ${horaLocal} (hora local)` : `🕒 Observado às ${zulu} (UTC)`;
+        })
         .replace(/(\d{3})(\d{2})KT/, "💨 Vento de $1° a $2 nós")
         .replace(/CAVOK/, "🌤️ Céu limpo, visibilidade >10km")
         .replace(/(\d{4})(?!\/)/, "👁️ Visibilidade: $1 metros")
