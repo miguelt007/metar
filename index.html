@@ -179,7 +179,8 @@
         .replace(/9999/, "Visibilidade ≥10 km")
         .replace(/(FEW|SCT|BKN|OVC)(\d{3})/g, (_, tipo, altura) => {
           const mapa = { FEW: "Poucas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Cobertura total" };
-          return `${mapa[tipo]} nuvens a ${altura * 30} pés`;
+          const altitude = parseInt(altura, 10) * 100;
+          return `${mapa[tipo]} nuvens a ${altitude} pés`;
         });
 
       const rmkMatch = metar.match(/RMK (.+)/);
@@ -224,7 +225,8 @@
         .replace(/CAVOK/, "Condições visuais excelentes (CAVOK)")
         .replace(/(FEW|SCT|BKN|OVC)(\d{3})/g, (_, tipo, altura) => {
           const mapa = { FEW: "Poucas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Cobertura total" };
-          return `${mapa[tipo]} nuvens a ${altura * 30} pés`;
+          const altitude = parseInt(altura, 10) * 100;
+          return `${mapa[tipo]} nuvens a ${altitude} pés`;
         });
     }
 
