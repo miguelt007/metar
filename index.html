@@ -42,6 +42,12 @@
       padding: 20px;
       border-radius: 10px;
       box-shadow: 0 0 10px #000;
+      transition: background 0.3s ease;
+    }
+    .card.severe {
+      background: #8b0000;
+      color: #fff;
+      border: 2px solid #ff4c4c;
     }
     .card h2 {
       margin-top: 0;
@@ -50,6 +56,11 @@
     .card span {
       font-size: 24px;
       display: block;
+      margin-top: 10px;
+    }
+    #metarRaw {
+      text-align: center;
+      font-style: italic;
       margin-top: 10px;
     }
   </style>
@@ -61,7 +72,7 @@
     <button onclick="getMetar()">Buscar</button>
   </div>
 
-  <div id="metarRaw" style="text-align:center;"></div>
+  <div id="metarRaw"></div>
   <div class="panel" id="metarPanel"></div>
 
   <script>
@@ -91,44 +102,71 @@
       panel.innerHTML = "";
 
       partes.forEach(p => {
+        let titulo = "", valor = "", severo = false;
+
         if (/^\d{6}Z$/.test(p)) {
-          addCard("🕒 Hora da Observação", `${p.slice(0,2)}/${p.slice(2,4)}:${p.slice(4,6)} UTC`);
-        } else if (/^\d{3}\d{2}KT$/.test(p)) {
-          addCard("💨 Vento", `${p.slice(0,3)}° a ${p.slice(3,5)} nós`);
+          titulo = "🕒 Hora da Observação";
+          valor = `${p.slice(0,2)}/${p.slice(2,4)}:${p.slice(4,6)} UTC`;
+        } else if (/^\d{3}\d{2}G\d{2}KT$/.test(p)) {
+          const direcao = p.slice(0,3);
+          const vel = parseInt(p.slice(3,5));
+          const rajada = parseInt(p.slice(6,8));
+          titulo = "💨 Vento com Rajadas";
+          valor = `${direcao}° a ${vel} nós, rajadas de ${rajada} nós`;
+          severo = rajada > 25;
         } else if (/^VRB\d{2}KT$/.test(p)) {
-          addCard("💨 Vento Variável", `${p.slice(3,5)} nós`);
+          const velocidade = parseInt(p.slice(3,5));
+          titulo = "💨 Vento Variável";
+          valor = `${velocidade} nós`;
+          severo = velocidade > 30;
+        } else if (/^\d{3}\d{2}KT$/.test(p)) {
+          const direcao = p.slice(0,3);
+          const velocidade = parseInt(p.slice(3,5));
+          titulo = "💨 Vento";
+          valor = `${direcao}° a ${velocidade} nós`;
+          severo = velocidade > 30;
         } else if (/^\d{4}$/.test(p)) {
-          addCard("👁️ Visibilidade", `${p} metros`);
+          const vis = parseInt(p);
+          titulo = "👁️ Visibilidade";
+          valor = `${vis} metros`;
+          severo = vis < 1000;
         } else if (/^(FEW|SCT|BKN|OVC)\d{3}$/.test(p)) {
           const cobertura = { FEW: "Poucas nuvens", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Encoberto" };
           const tipo = p.slice(0,3);
           const altura = parseInt(p.slice(3)) * 100;
-          addCard("☁️ Nuvens", `${cobertura[tipo]} a ${altura} pés`);
+          titulo = "☁️ Nuvens";
+          valor = `${cobertura[tipo]} a ${altura} pés`;
         } else if (/^Q\d{4}$/.test(p)) {
-          addCard("📉 Pressão", `${p.slice(1)} hPa`);
+          titulo = "📉 Pressão";
+          valor = `${p.slice(1)} hPa`;
         } else if (/^\d{2}\/\d{2}$/.test(p)) {
           const [temp, dew] = p.split("/");
-          addCard("🌡️ Temperatura", `${temp}°C / Ponto de orvalho: ${dew}°C`);
+          titulo = "🌡️ Temperatura";
+          valor = `${temp}°C / Ponto de orvalho: ${dew}°C`;
         } else if (/^(-|\+)?(RA|SN|FG|BR|HZ|TS|DZ|GR)$/.test(p)) {
           const intensidade = p.startsWith("+") ? "forte" : p.startsWith("-") ? "fraca" : "moderada";
           const fenomeno = {
             RA: "chuva", SN: "neve", FG: "nevoeiro", BR: "névoa",
             HZ: "névoa seca", TS: "trovoada", DZ: "chuvisco", GR: "granizo"
           }[p.replace(/[-+]/, "")];
-          addCard("🌧️ Fenômeno", `${fenomeno} ${intensidade}`);
+          titulo = "🌧️ Fenômeno";
+          valor = `${fenomeno} ${intensidade}`;
+          severo = p.startsWith("+") || ["TS", "GR", "FG", "SN"].includes(p.replace(/[-+]/, ""));
         } else if (/^NOSIG$/.test(p)) {
-          addCard("🔮 Tendência", "Sem mudanças significativas");
+          titulo = "🔮 Tendência";
+          valor = "Sem mudanças significativas";
         } else if (/^CAVOK$/.test(p)) {
-          addCard("🌤️ Condições", "Céu limpo, visibilidade >10km");
+          titulo = "🌤️ Condições";
+          valor = "Céu limpo, visibilidade >10km";
+        }
+
+        if (titulo) {
+          const div = document.createElement("div");
+          div.className = "card" + (severo ? " severe" : "");
+          div.innerHTML = `<h2>${titulo}</h2><span>${valor}</span>`;
+          panel.appendChild(div);
         }
       });
-
-      function addCard(titulo, valor) {
-        const div = document.createElement("div");
-        div.className = "card";
-        div.innerHTML = `<h2>${titulo}</h2><span>${valor}</span>`;
-        panel.appendChild(div);
-      }
     }
   </script>
 </body>
