@@ -8,7 +8,7 @@
       font-family: Arial, sans-serif;
       background: #f4f4f4;
       padding: 30px;
-      max-width: 700px;
+      max-width: 800px;
       margin: auto;
     }
     h1 {
@@ -70,15 +70,22 @@
       partes.forEach(p => {
         if (/^\d{6}Z$/.test(p)) {
           resultado.push(`Observado às ${p.slice(2,4)}:${p.slice(4,6)} UTC no dia ${p.slice(0,2)}.`);
+        } else if (/^\d{3}\d{2}G\d{2}KT$/.test(p)) {
+          const direcao = p.slice(0,3);
+          const vel = p.slice(3,5);
+          const rajada = p.slice(6,8);
+          resultado.push(`Vento de ${direcao}° a ${vel} nós com rajadas de ${rajada} nós.`);
+        } else if (/^VRB\d{2}KT$/.test(p)) {
+          const velocidade = p.slice(3,5);
+          resultado.push(`Vento variável a ${velocidade} nós.`);
         } else if (/^\d{3}\d{2}KT$/.test(p)) {
           const direcao = p.slice(0,3);
           const velocidade = p.slice(3,5);
           resultado.push(`Vento de ${direcao}° a ${velocidade} nós.`);
-        } else if (/^VRB\d{2}KT$/.test(p)) {
-          const velocidade = p.slice(3,5);
-          resultado.push(`Vento variável a ${velocidade} nós.`);
         } else if (/^\d{4}$/.test(p)) {
           resultado.push(`Visibilidade de ${parseInt(p)} metros.`);
+        } else if (/^CAVOK$/.test(p)) {
+          resultado.push(`Céu limpo, visibilidade superior a 10 km, sem nuvens significativas ou fenômenos.`);
         } else if (/^(FEW|SCT|BKN|OVC)\d{3}$/.test(p)) {
           const cobertura = { FEW: "Poucas nuvens", SCT: "Nuvens dispersas", BKN: "Nuvens fragmentadas", OVC: "Céu encoberto" };
           const tipo = p.slice(0,3);
@@ -86,17 +93,22 @@
           resultado.push(`${cobertura[tipo]} a ${altura} pés.`);
         } else if (/^Q\d{4}$/.test(p)) {
           resultado.push(`Pressão atmosférica de ${p.slice(1)} hPa.`);
-        } else if (/^(-|\+)?(RA|SN|FG|BR)$/.test(p)) {
+        } else if (/^(-|\+)?(RA|SN|FG|BR|HZ|TS|DZ|GR)$/.test(p)) {
           const intensidade = p.startsWith("+") ? "forte" : p.startsWith("-") ? "fraca" : "moderada";
-          const fenomeno = { RA: "chuva", SN: "neve", FG: "nevoeiro", BR: "névoa" }[p.replace(/[-+]/, "")];
+          const fenomeno = {
+            RA: "chuva", SN: "neve", FG: "nevoeiro", BR: "névoa",
+            HZ: "névoa seca", TS: "trovoada", DZ: "chuvisco", GR: "granizo"
+          }[p.replace(/[-+]/, "")];
           resultado.push(`${fenomeno.charAt(0).toUpperCase() + fenomeno.slice(1)} ${intensidade}.`);
         } else if (/^\d{2}\/\d{2}$/.test(p)) {
           const [temp, dew] = p.split("/");
           resultado.push(`Temperatura: ${temp}°C, Ponto de orvalho: ${dew}°C.`);
-        } else if (/^R\d{2}\/\d{4}$/.test(p)) {
+        } else if (/^R\d{2}[A-Z]?\/\d{4}$/.test(p)) {
           resultado.push(`Alcance visual na pista: ${p}.`);
         } else if (/^NOSIG$/.test(p)) {
           resultado.push(`Sem mudanças significativas esperadas.`);
+        } else if (/^(BECMG|TEMPO)$/.test(p)) {
+          resultado.push(`Tendência: ${p === "BECMG" ? "Mudança gradual esperada" : "Condições temporárias previstas"}.`);
         }
       });
 
