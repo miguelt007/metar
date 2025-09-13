@@ -60,9 +60,9 @@
   <div id="panel"></div>
 
   <script>
-    const icaosDisponiveis = ["LPPT"];
+    const icaosDisponiveis = ["LPPT", "LPFR", "LPCS", "LPPR", "LPMR"];
 
-    window.onload = () => {
+    document.addEventListener("DOMContentLoaded", () => {
       const select = document.getElementById("icaoSelect");
       icaosDisponiveis.forEach(icao => {
         const opt = document.createElement("option");
@@ -70,7 +70,7 @@
         opt.textContent = icao;
         select.appendChild(opt);
       });
-    };
+    });
 
     function buscarDados() {
       const icao = document.getElementById("icaoSelect").value;
@@ -168,6 +168,7 @@
           }
 
           if (/\$/.test(rmk)) output += "• Manutenção necessária na estação\n";
+          }
 
           return output.trim();
         });
