@@ -5,54 +5,17 @@
   <title>Painel METAR / TAF</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
-      padding: 20px;
-      margin: auto;
-      max-width: 800px;
-    }
-    h1 {
-      color: #333;
-      font-size: 1.8em;
-      text-align: center;
-    }
-    select {
-      font-size: 16px;
-      padding: 8px;
-      margin-top: 10px;
-      width: 100%;
-      max-width: 400px;
-    }
-    .section {
-      margin-top: 30px;
-    }
-    pre {
-      background: #fff;
-      padding: 12px;
-      border: 1px solid #ccc;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      font-size: 15px;
-    }
-    .timestamp {
-      font-size: 14px;
-      color: #666;
-      margin-top: 5px;
-    }
+    body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; margin: auto; max-width: 800px; }
+    h1 { color: #333; font-size: 1.8em; text-align: center; }
+    select { font-size: 16px; padding: 8px; margin-top: 10px; width: 100%; max-width: 400px; }
+    .section { margin-top: 30px; }
+    pre { background: #fff; padding: 12px; border: 1px solid #ccc; white-space: pre-wrap; word-wrap: break-word; font-size: 15px; }
+    .timestamp { font-size: 14px; color: #666; margin-top: 5px; }
     @media (max-width: 600px) {
-      body {
-        padding: 10px;
-      }
-      h1 {
-        font-size: 1.4em;
-      }
-      select {
-        font-size: 15px;
-      }
-      pre {
-        font-size: 14px;
-      }
+      body { padding: 10px; }
+      h1 { font-size: 1.4em; }
+      select { font-size: 15px; }
+      pre { font-size: 14px; }
     }
   </style>
 </head>
@@ -130,12 +93,9 @@
         const metarTexto = metarData.metar?.trim();
         const tafTexto = tafData.taf?.trim();
 
-        // METAR
         if (metarTexto && !metarTexto.toLowerCase().includes("não disponível")) {
           document.getElementById("metar").textContent = metarTexto;
-          document.getElementById("metar-time").textContent = metarData.updated
-            ? `Atualizado em: ${metarData.updated}`
-            : "";
+          document.getElementById("metar-time").textContent = metarData.updated || "";
           document.getElementById("metar-decode").textContent = descodificarMETAR(metarTexto);
         } else {
           document.getElementById("metar").textContent = "⚠️ Dados não encontrados.";
@@ -143,12 +103,9 @@
           document.getElementById("metar-decode").textContent = "";
         }
 
-        // TAF
         if (tafTexto && !tafTexto.toLowerCase().includes("não disponível")) {
           document.getElementById("taf").textContent = tafTexto;
-          document.getElementById("taf-time").textContent = tafData.updated
-            ? `Atualizado em: ${tafData.updated}`
-            : "";
+          document.getElementById("taf-time").textContent = tafData.updated || "";
           document.getElementById("taf-decode").textContent = descodificarTAF(tafTexto);
         } else {
           document.getElementById("taf").textContent = "⚠️ Dados não encontrados.";
@@ -158,12 +115,6 @@
 
       } catch (error) {
         console.error("Erro ao carregar dados:", error);
-        document.getElementById("metar").textContent = "⚠️ Erro ao carregar METAR.";
-        document.getElementById("taf").textContent = "⚠️ Erro ao carregar TAF.";
-        document.getElementById("metar-time").textContent = "";
-        document.getElementById("taf-time").textContent = "";
-        document.getElementById("metar-decode").textContent = "";
-        document.getElementById("taf-decode").textContent = "";
       }
     }
 
@@ -171,22 +122,27 @@
       if (!metar) return "";
 
       let texto = metar
-        .replace(/(\d{4})Z/, "Hora UTC: $1")
-        .replace(/(\d{3})(\d{2})KT/, "Vento: $1° a $2 nós")
+        .replace(/(\d{2})(\d{4})Z/, "Observação do dia $1 às $2 UTC")
         .replace(/VRB(\d{2})KT/, "Vento variável a $1 nós")
+        .replace(/(\d{3})(\d{2})KT/, "Vento: $1° a $2 nós")
+        .replace(/(\d{3})V(\d{3})/, "Variação de vento entre $1° e $2°")
+        .replace(/9999/, "Visibilidade ≥10 km")
         .replace(/(\d{2})\/(\d{2})/, "Temperatura: $1°C / Ponto de orvalho: $2°C")
         .replace(/Q(\d{4})/, "Pressão: $1 hPa")
-        .replace(/9999/, "Visibilidade ≥10 km")
         .replace(/(FEW|SCT|BKN|OVC)(\d{3})/g, (_, tipo, altura) => {
-          const mapa = { FEW: "Poucas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Cobertura total" };
+          const mapa = {
+            FEW: "Poucas nuvens",
+            SCT: "Nuvens dispersas",
+            BKN: "Nuvens fragmentadas",
+            OVC: "Cobertura total de nuvens"
+          };
           const altitude = parseInt(altura, 10) * 100;
-          return `${mapa[tipo]} nuvens a ${altitude} pés`;
+          return `${mapa[tipo]} a ${altitude} pés`;
         });
 
       const rmkMatch = metar.match(/RMK (.+)/);
       if (rmkMatch) {
-        const rmk = rmkMatch[1];
-        texto += `\nObservações (RMK): ${descodificarRMK(rmk)}`;
+        texto += `\nObservações (RMK): ${descodificarRMK(rmkMatch[1])}`;
       }
 
       return texto;
@@ -194,15 +150,12 @@
 
     function descodificarRMK(rmk) {
       return rmk
-        .replace(/R(\d{2})\/(\d{2})/, "Condição da pista $1: $2")
-        .replace(/WS/, "Wind shear detectado")
-        .replace(/AUTO/, "Observação automática")
-        .replace(/SLP(\d{3})/, "Pressão ao nível do mar: SLP$1")
-        .replace(/T(\d{4})/, (_, t) => {
-          const temp = parseInt(t.slice(0, 2), 10) / 10;
-          const dew = parseInt(t.slice(2, 4), 10) / 10;
-          return `Temp detalhada: ${temp}°C / Ponto de orvalho: ${dew}°C`;
-        });
+        .replace(/WIND RWY(\d{2}) (\d{3})(\d{2})KT (\d{3})V(\d{3})/g,
+          (_, pista, dir, vel, var1, var2) =>
+            `Vento na pista ${pista}: ${dir}° a ${vel} nós, variando entre ${var1}° e ${var2}°`)
+        .replace(/WIND RWY(\d{2}) (\d{3})(\d{2})KT/g,
+          (_, pista, dir, vel) =>
+            `Vento na pista ${pista}: ${dir}° a ${vel} nós`);
     }
 
     function descodificarTAF(taf) {
@@ -224,9 +177,14 @@
         .replace(/9999/, "Visibilidade ≥10 km")
         .replace(/CAVOK/, "Condições visuais excelentes (CAVOK)")
         .replace(/(FEW|SCT|BKN|OVC)(\d{3})/g, (_, tipo, altura) => {
-          const mapa = { FEW: "Poucas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Cobertura total" };
+          const mapa = {
+            FEW: "Poucas nuvens",
+            SCT: "Nuvens dispersas",
+            BKN: "Nuvens fragmentadas",
+            OVC: "Cobertura total de nuvens"
+          };
           const altitude = parseInt(altura, 10) * 100;
-          return `${mapa[tipo]} nuvens a ${altitude} pés`;
+          return `${mapa[tipo]} a ${altitude} pés`;
         });
     }
 
