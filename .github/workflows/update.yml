@@ -1,0 +1,27 @@
+name: Atualizar METAR e TAF
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Instalar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Instalar dependências
+        run: pip install requests
+      - name: Buscar METAR e TAF
+        run: python fetch_metar_taf.py
+      - name: Commit e push
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add metar.json taf.json
+          git commit -m "Atualizar METAR e TAF"
+          git push
