@@ -204,11 +204,20 @@
 
     function descodificarTAF(taf) {
       if (!taf) return "";
+
       return taf
-        .replace(/FM(\d{6})/, "A partir de: $1")
+        .replace(/TAF\s+(\w+)/, "Previsão para: $1")
+        .replace(/(\d{6})Z/, "Emitido às: $1 UTC")
+        .replace(/(\d{4})\/(\d{4})/, "Válido de: $1 até $2 UTC")
+        .replace(/FM(\d{6})/, "A partir de: $1 UTC")
         .replace(/BECMG (\d{4}\/\d{4})/, "Tendência: $1")
         .replace(/TEMPO (\d{4}\/\d{4})/, "Condições temporárias: $1")
+        .replace(/PROB(\d{2}) (\d{4}\/\d{4})/, "Probabilidade $1% entre $2")
+        .replace(/NSW/, "Sem fenómenos significativos (NSW)")
+        .replace(/TX(\d{2})\/(\d{4})Z/, "Temp máxima: $1°C às $2 UTC")
+        .replace(/TN(\d{2})\/(\d{4})Z/, "Temp mínima: $1°C às $2 UTC")
         .replace(/(\d{3})(\d{2})KT/, "Vento: $1° a $2 nós")
+        .replace(/CAVOK/, "Condições visuais excelentes (CAVOK)")
         .replace(/(FEW|SCT|BKN|OVC)(\d{3})/, (_, tipo, altura) => {
           const mapa = { FEW: "Poucas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Cobertura total" };
           return `${mapa[tipo]} nuvens a ${altura * 30} pés`;
