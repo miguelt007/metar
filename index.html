@@ -30,8 +30,13 @@
     .card.severe {
       background: #8b0000;
     }
-    pre {
-      white-space: pre-wrap;
+    .linha {
+      margin: 5px 0;
+      display: flex;
+      align-items: center;
+    }
+    .linha span {
+      margin-left: 8px;
     }
   </style>
 </head>
@@ -67,18 +72,68 @@
       const alerta = /TS|0000|PROB[4-9]|\$/.test(texto);
       const div = document.createElement("div");
       div.className = "card" + (alerta ? " severe" : "");
-      div.innerHTML = `<strong>${titulo}</strong><pre>${traduzir(texto)}</pre>`;
+      div.innerHTML = `<strong>${titulo}</strong>`;
+      const linhas = traduzir(texto);
+      linhas.forEach(l => {
+        const linha = document.createElement("div");
+        linha.className = "linha";
+        linha.innerHTML = `<span>${l}</span>`;
+        div.appendChild(linha);
+      });
       document.getElementById("panel").appendChild(div);
     }
 
     function traduzir(t) {
-      if (!t || !t.includes("Z")) return "⚠️ Dados não encontrados.";
-      return t
-        .replace(/(\d{6}Z)/, "🕒 $1\n")
-        .replace(/(\d{3})(\d{2})KT/, "💨 Vento $1° a $2 nós\n")
-        .replace(/CAVOK/, "🌤️ Céu limpo\n")
-        .replace(/Q(\d{4})/, "📉 Pressão: $1 hPa\n")
-        .replace(/RMK (.+)/, "📌 RMK: $1\n");
+      if (!t || !t.includes("Z")) return ["⚠️ Dados não encontrados."];
+      const linhas = [];
+
+      const zulu = t.match(/\d{6}Z/);
+      if (zulu) linhas.push(`🕒 Observado às ${zulu[0]} UTC`);
+
+      const vento = t.match(/(\d{3})(\d{2})KT/);
+      if (vento) linhas.push(`💨 Vento de ${vento[1]}° a ${vento[2]} nós`);
+
+      const varVento = t.match(/\d{3}V\d{3}/);
+      if (varVento) linhas.push(`↔️ Vento variável: ${varVento[0]}`);
+
+      if (/CAVOK/.test(t)) linhas.push("🌤️ Céu limpo, visibilidade >10km");
+
+      const vis = t.match(/\d{4}(?!\/)/);
+      if (vis) linhas.push(`👁️ Visibilidade: ${vis[0]} metros`);
+
+      const temp = t.match(/(\d{2})\/(\d{2})/);
+      if (temp) linhas.push(`🌡️ Temperatura: ${temp[1]}°C / Ponto de orvalho: ${temp[2]}°C`);
+
+      const press = t.match(/Q(\d{4})/);
+      if (press) linhas.push(`📉 Pressão: ${press[1]} hPa`);
+
+      const nuvens = [...t.matchAll(/(FEW|SCT|BKN|OVC)(\d{3})/g)];
+      nuvens.forEach(n => {
+        const map = { FEW: "Poucas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Encoberto" };
+        linhas.push(`☁️ Nuvens ${map[n[1]]} a ${parseInt(n[2]) * 100} pés`);
+      });
+
+      const fenos = [...t.matchAll(/(-|\+)?(RA|SN|FG|BR|TS|DZ|GR)/g)];
+      fenos.forEach(f => {
+        const map = {
+          RA: "chuva", SN: "neve", FG: "nevoeiro", BR: "névoa",
+          TS: "trovoada", DZ: "chuvisco", GR: "granizo"
+        };
+        const intensidade = f[1] === "+" ? "forte" : f[1] === "-" ? "fraca" : "moderada";
+        linhas.push(`🌧️ ${map[f[2]]} ${intensidade}`);
+      });
+
+      if (/NOSIG/.test(t)) linhas.push("🔮 Sem mudanças significativas");
+      if (/BECMG/.test(t)) linhas.push("🔄 Mudança gradual esperada");
+      if (/TEMPO/.test(t)) linhas.push("🔄 Condições temporárias");
+
+      const prob = t.match(/PROB(\d{2})/);
+      if (prob) linhas.push(`📊 Probabilidade ${prob[1]}%`);
+
+      const rmk = t.match(/RMK (.+)/);
+      if (rmk) linhas.push(`📌 Observações: ${rmk[1]}`);
+
+      return linhas;
     }
   </script>
 </body>
