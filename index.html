@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Painel METAR via Weather.gov</title>
+  <title>Painel METAR / TAF / SIGMET via Meteo365</title>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -59,31 +59,35 @@
   </style>
 </head>
 <body>
-  <h1>Painel METAR via Weather.gov</h1>
+  <h1>Painel METAR / TAF / SIGMET via Meteo365</h1>
   <div class="input-area">
-    <input type="text" id="icao" value="KLAX" placeholder="Código ICAO (EUA)" />
-    <button onclick="getMetar()">Buscar</button>
+    <input type="text" id="icao" value="LPPT" placeholder="Código ICAO" />
+    <button onclick="getMeteo365()">Buscar</button>
   </div>
   <div class="panel" id="panel"></div>
 
   <script>
-    async function getMetar() {
+    async function getMeteo365() {
       const icao = document.getElementById("icao").value.toUpperCase();
-      const url = `https://api.weather.gov/stations/${icao}/observations/latest`;
+      const url = `https://meteo365.es/airport/${icao}`;
+      const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
       const panel = document.getElementById("panel");
       panel.innerHTML = "";
 
       try {
-        const res = await fetch(url);
+        const res = await fetch(proxy);
         const data = await res.json();
-        const obs = data.properties;
+        const html = data.contents;
 
-        const texto = traduzirMetar(obs);
-        const severo = obs.visibility.value < 1 || obs.windSpeed.value > 15;
+        const metar = html.match(/METAR:\s*([\s\S]*?)<\/p>/)?.[1]?.trim() || "METAR não encontrado.";
+        const taf = html.match(/TAF:\s*([\s\S]*?)<\/p>/)?.[1]?.trim() || "TAF não encontrado.";
+        const sigmet = html.match(/SIGMET:\s*([\s\S]*?)<\/p>/)?.[1]?.trim() || "SIGMET não encontrado.";
 
-        renderCard(`🛬 METAR ${icao}`, texto, severo);
+        renderCard("🛬 METAR", traduzirTexto(metar), metar.includes("+RA") || metar.includes("TS") || metar.includes("1300"));
+        renderCard("📋 TAF", traduzirTexto(taf), taf.includes("TS") || taf.includes("PROB"));
+        renderCard("⚠️ SIGMET", sigmet, sigmet.includes("SEV TURB") || sigmet.includes("SEV ICE"));
       } catch (err) {
-        panel.innerHTML = "<div class='card severe'><h2>Erro</h2><span>Não foi possível obter dados da Weather.gov.</span></div>";
+        panel.innerHTML = "<div class='card severe'><h2>Erro</h2><span>Não foi possível obter dados da Meteo365.</span></div>";
         console.error(err);
       }
     }
@@ -95,41 +99,28 @@
       document.getElementById("panel").appendChild(div);
     }
 
-    function traduzirMetar(obs) {
-      const partes = [];
-
-      if (obs.timestamp) {
-        const dt = new Date(obs.timestamp);
-        partes.push(`🕒 Observado às ${dt.toUTCString()}`);
-      }
-
-      if (obs.textDescription) {
-        partes.push(`🌧️ Condição: ${obs.textDescription}`);
-      }
-
-      if (obs.windDirection.value !== null && obs.windSpeed.value !== null) {
-        partes.push(`💨 Vento: ${obs.windDirection.value}° a ${obs.windSpeed.value} nós`);
-      }
-
-      if (obs.visibility.value !== null) {
-        const visKm = (obs.visibility.value * 1.60934).toFixed(1);
-        partes.push(`👁️ Visibilidade: ${visKm} km`);
-      }
-
-      if (obs.temperature.value !== null) {
-        partes.push(`🌡️ Temperatura: ${obs.temperature.value.toFixed(1)}°C`);
-      }
-
-      if (obs.dewpoint.value !== null) {
-        partes.push(`💧 Ponto de orvalho: ${obs.dewpoint.value.toFixed(1)}°C`);
-      }
-
-      if (obs.barometricPressure.value !== null) {
-        const hPa = (obs.barometricPressure.value / 100).toFixed(0);
-        partes.push(`📉 Pressão: ${hPa} hPa`);
-      }
-
-      return partes.join("\n");
+    function traduzirTexto(texto) {
+      return texto
+        .replace(/(\d{6}Z)/, "🕒 Observado às $1")
+        .replace(/(\d{3})(\d{2})KT/, "💨 Vento de $1° a $2 nós")
+        .replace(/CAVOK/, "🌤️ Céu limpo, visibilidade >10km")
+        .replace(/(\d{4})/, "👁️ Visibilidade: $1 metros")
+        .replace(/(FEW|SCT|BKN|OVC)(\d{3})/g, (_, tipo, alt) => {
+          const map = { FEW: "Poucas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Encoberto" };
+          return `☁️ Nuvens ${map[tipo]} a ${parseInt(alt) * 100} pés`;
+        })
+        .replace(/Q(\d{4})/, "📉 Pressão: $1 hPa")
+        .replace(/(\d{2})\/(\d{2})/, "🌡️ Temperatura: $1°C / Ponto de orvalho: $2°C")
+        .replace(/NOSIG/, "🔮 Sem mudanças significativas")
+        .replace(/(-|\+)?(RA|SN|FG|BR|TS|DZ|GR)/g, (_, int, fen) => {
+          const map = { RA: "chuva", SN: "neve", FG: "nevoeiro", BR: "névoa", TS: "trovoada", DZ: "chuvisco", GR: "granizo" };
+          const intensidade = int === "+" ? "forte" : int === "-" ? "fraca" : "moderada";
+          return `🌧️ ${map[fen]} ${intensidade}`;
+        })
+        .replace(/BECMG/g, "🔄 Mudança gradual esperada")
+        .replace(/TEMPO/g, "🔄 Condições temporárias")
+        .replace(/FM(\d{6})/g, (_, hora) => `🕒 A partir de ${hora.slice(0,2)}/${hora.slice(2,4)}:${hora.slice(4,6)} UTC`)
+        .replace(/PROB(\d{2})/g, (_, prob) => `📊 Probabilidade ${prob}%`);
     }
   </script>
 </body>
