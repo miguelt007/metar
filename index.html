@@ -2,138 +2,89 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Painel METAR / TAF</title>
+  <title>Painel METAR/TAF</title>
   <style>
     body {
-      font-family: sans-serif;
-      background: #1e1e2f;
-      color: #fff;
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
       padding: 20px;
     }
-    input, button {
-      padding: 10px;
+    h1 {
+      color: #333;
+    }
+    select {
       font-size: 16px;
-      margin: 5px;
-      border-radius: 5px;
-      border: none;
+      padding: 5px;
     }
-    button {
-      background: #007acc;
-      color: white;
+    pre {
+      background: #fff;
+      padding: 10px;
+      border: 1px solid #ccc;
+      white-space: pre-wrap;
     }
-    .card {
-      background: #2e2e3e;
-      padding: 15px;
-      border-radius: 10px;
-      margin-top: 15px;
-    }
-    .card.severe {
-      background: #8b0000;
-    }
-    .linha {
-      margin: 5px 0;
-      display: flex;
-      align-items: center;
-    }
-    .linha span {
-      margin-left: 8px;
+    .section {
+      margin-top: 20px;
     }
   </style>
 </head>
 <body>
-  <h2>Painel METAR / TAF</h2>
-  <input type="text" id="icaoInput" placeholder="Escreve ICAO (ex: LPPT)">
-  <button onclick="buscar()">Buscar</button>
-  <div id="panel"></div>
+  <h1>🛫 Painel METAR / TAF</h1>
+
+  <label for="icao">Seleciona o aeroporto:</label>
+  <select id="icao" onchange="carregarDados(this.value)">
+    <option value="LPPT">LPPT - Lisboa</option>
+    <option value="LPFR">LPFR - Faro</option>
+    <option value="LPPR">LPPR - Porto</option>
+    <option value="LPCS">LPCS - Cascais</option>
+    <option value="LPMR">LPMR - Monte Real</option>
+    <option value="LPPD">LPPD - Ponta Delgada</option>
+    <option value="LPSJ">LPSJ - São Jorge</option>
+    <option value="LPAV">LPAV - Aveiro</option>
+    <option value="LPVZ">LPVZ - Viseu</option>
+    <option value="LPMA">LPMA - Madeira</option>
+    <option value="KJFK">KJFK - New York</option>
+    <option value="KLAX">KLAX - Los Angeles</option>
+    <option value="KORD">KORD - Chicago</option>
+  </select>
+
+  <div class="section">
+    <h2>🛬 METAR</h2>
+    <pre id="metar">Selecione um aeroporto acima.</pre>
+  </div>
+
+  <div class="section">
+    <h2>📋 TAF</h2>
+    <pre id="taf">Selecione um aeroporto acima.</pre>
+  </div>
 
   <script>
-    function buscar() {
-      const icao = document.getElementById("icaoInput").value.trim().toUpperCase();
-      if (icao.length !== 4) {
-        alert("Insere um ICAO válido com 4 letras.");
-        return;
+    async function carregarDados(icao) {
+      try {
+        const metarRes = await fetch(`dados/metar-${icao}.json`);
+        const tafRes = await fetch(`dados/taf-${icao}.json`);
+
+        const metarData = await metarRes.json();
+        const tafData = await tafRes.json();
+
+        // METAR
+        if (metarData.metar && !metarData.metar.includes("não disponível")) {
+          document.getElementById("metar").textContent = metarData.metar;
+        } else {
+          document.getElementById("metar").textContent = "⚠️ Dados não encontrados.";
+        }
+
+        // TAF
+        if (tafData.taf && !tafData.taf.includes("não disponível")) {
+          document.getElementById("taf").textContent = tafData.taf;
+        } else {
+          document.getElementById("taf").textContent = "⚠️ Dados não encontrados.";
+        }
+
+      } catch (error) {
+        console.error("Erro ao carregar dados:", error);
+        document.getElementById("metar").textContent = "⚠️ Erro ao carregar METAR.";
+        document.getElementById("taf").textContent = "⚠️ Erro ao carregar TAF.";
       }
-
-      document.getElementById("panel").innerHTML = "<p>A carregar...</p>";
-
-      Promise.all([
-        fetch(`dados/metar-${icao}.json`).then(r => r.ok ? r.json() : Promise.reject("METAR não disponível")),
-        fetch(`dados/taf-${icao}.json`).then(r => r.ok ? r.json() : Promise.reject("TAF não disponível"))
-      ]).then(([metar, taf]) => {
-        document.getElementById("panel").innerHTML = "";
-        mostrar("🛬 METAR", metar.metar);
-        mostrar("📋 TAF", taf.taf);
-      }).catch(err => {
-        document.getElementById("panel").innerHTML = `<p>❌ ${err} para ${icao}</p>`;
-      });
-    }
-
-    function mostrar(titulo, texto) {
-      const alerta = /TS|0000|PROB[4-9]|\$/.test(texto);
-      const div = document.createElement("div");
-      div.className = "card" + (alerta ? " severe" : "");
-      div.innerHTML = `<strong>${titulo}</strong>`;
-      const linhas = traduzir(texto);
-      linhas.forEach(l => {
-        const linha = document.createElement("div");
-        linha.className = "linha";
-        linha.innerHTML = `<span>${l}</span>`;
-        div.appendChild(linha);
-      });
-      document.getElementById("panel").appendChild(div);
-    }
-
-    function traduzir(t) {
-      if (!t || !t.includes("Z")) return ["⚠️ Dados não encontrados."];
-      const linhas = [];
-
-      const zulu = t.match(/\d{6}Z/);
-      if (zulu) linhas.push(`🕒 Observado às ${zulu[0]} UTC`);
-
-      const vento = t.match(/(\d{3})(\d{2})KT/);
-      if (vento) linhas.push(`💨 Vento de ${vento[1]}° a ${vento[2]} nós`);
-
-      const varVento = t.match(/\d{3}V\d{3}/);
-      if (varVento) linhas.push(`↔️ Vento variável: ${varVento[0]}`);
-
-      if (/CAVOK/.test(t)) linhas.push("🌤️ Céu limpo, visibilidade >10km");
-
-      const vis = t.match(/\d{4}(?!\/)/);
-      if (vis) linhas.push(`👁️ Visibilidade: ${vis[0]} metros`);
-
-      const temp = t.match(/(\d{2})\/(\d{2})/);
-      if (temp) linhas.push(`🌡️ Temperatura: ${temp[1]}°C / Ponto de orvalho: ${temp[2]}°C`);
-
-      const press = t.match(/Q(\d{4})/);
-      if (press) linhas.push(`📉 Pressão: ${press[1]} hPa`);
-
-      const nuvens = [...t.matchAll(/(FEW|SCT|BKN|OVC)(\d{3})/g)];
-      nuvens.forEach(n => {
-        const map = { FEW: "Poucas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Encoberto" };
-        linhas.push(`☁️ Nuvens ${map[n[1]]} a ${parseInt(n[2]) * 100} pés`);
-      });
-
-      const fenos = [...t.matchAll(/(-|\+)?(RA|SN|FG|BR|TS|DZ|GR)/g)];
-      fenos.forEach(f => {
-        const map = {
-          RA: "chuva", SN: "neve", FG: "nevoeiro", BR: "névoa",
-          TS: "trovoada", DZ: "chuvisco", GR: "granizo"
-        };
-        const intensidade = f[1] === "+" ? "forte" : f[1] === "-" ? "fraca" : "moderada";
-        linhas.push(`🌧️ ${map[f[2]]} ${intensidade}`);
-      });
-
-      if (/NOSIG/.test(t)) linhas.push("🔮 Sem mudanças significativas");
-      if (/BECMG/.test(t)) linhas.push("🔄 Mudança gradual esperada");
-      if (/TEMPO/.test(t)) linhas.push("🔄 Condições temporárias");
-
-      const prob = t.match(/PROB(\d{2})/);
-      if (prob) linhas.push(`📊 Probabilidade ${prob[1]}%`);
-
-      const rmk = t.match(/RMK (.+)/);
-      if (rmk) linhas.push(`📌 Observações: ${rmk[1]}`);
-
-      return linhas;
     }
   </script>
 </body>
