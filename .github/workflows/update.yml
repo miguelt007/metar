@@ -2,11 +2,11 @@ name: Atualizar METAR e TAF
 
 on:
   schedule:
-    - cron: '0 * * * *'
-  workflow_dispatch:
+    - cron: '0 * * * *'  # Executa a cada hora
+  workflow_dispatch:      # Permite execução manual
 
 permissions:
-  contents: write  # 👈 Permite push via GITHUB_TOKEN
+  contents: write         # 👈 Permissão explícita para push
 
 jobs:
   update:
