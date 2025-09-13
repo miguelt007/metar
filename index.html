@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Painel METAR/TAF/SIGMET</title>
+  <title>Painel IPMA METAR/TAF/SIGMET</title>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -13,7 +13,6 @@
     }
     h1 {
       text-align: center;
-      margin-bottom: 20px;
     }
     .input-area {
       text-align: center;
@@ -42,11 +41,9 @@
       padding: 20px;
       border-radius: 10px;
       box-shadow: 0 0 10px #000;
-      transition: background 0.3s ease;
     }
     .card.severe {
       background: #8b0000;
-      color: #fff;
       border: 2px solid #ff4c4c;
     }
     .card h2 {
@@ -59,180 +56,65 @@
       margin-top: 10px;
       white-space: pre-wrap;
     }
-    #metarRaw {
-      text-align: center;
-      font-style: italic;
-      margin-top: 10px;
-    }
   </style>
 </head>
 <body>
-  <h1>Painel de Controle METAR / TAF / SIGMET</h1>
+  <h1>Painel IPMA METAR / TAF / SIGMET</h1>
   <div class="input-area">
     <input type="text" id="icao" value="LPPT" placeholder="Código ICAO" />
-    <button onclick="getMetar()">Buscar</button>
+    <button onclick="getIPMA()">Buscar</button>
   </div>
-
-  <div id="metarRaw"></div>
-  <div class="panel" id="metarPanel"></div>
+  <div class="panel" id="panel"></div>
 
   <script>
-    async function getMetar() {
-      const icao = document.getElementById('icao').value.toUpperCase();
-      const baseUrl = "https://aviationweather.gov/cgi-bin/data/dataserver.php";
-      const proxy = url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-
-      const endpoints = {
-        metar: `${baseUrl}?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=1&stationString=${icao}`,
-        taf: `${baseUrl}?dataSource=tafs&requestType=retrieve&format=xml&hoursBeforeNow=1&stationString=${icao}`,
-        sigmet: `${baseUrl}?dataSource=sigmets&requestType=retrieve&format=xml&hoursBeforeNow=4`
-      };
+    async function getIPMA() {
+      const icao = document.getElementById("icao").value.toUpperCase();
+      const url = "https://www.ipma.pt/en/aeronautica/tar.metar/";
+      const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
 
       try {
-        const [metarRes, tafRes, sigmetRes] = await Promise.all([
-          fetch(proxy(endpoints.metar)).then(r => r.json()),
-          fetch(proxy(endpoints.taf)).then(r => r.json()),
-          fetch(proxy(endpoints.sigmet)).then(r => r.json())
-        ]);
+        const res = await fetch(proxy);
+        const data = await res.json();
+        const html = data.contents;
 
-        const metarText = metarRes.contents.match(/<raw_text>(.*?)<\/raw_text>/)?.[1] || "METAR não encontrado.";
-        const tafText = tafRes.contents.match(/<raw_text>(.*?)<\/raw_text>/)?.[1] || "TAF não encontrado.";
-        const sigmetMatches = [...sigmetRes.contents.matchAll(/<raw_text>(.*?)<\/raw_text>/g)];
-        const sigmetTexts = sigmetMatches.map(m => m[1]);
+        const metar = html.match(new RegExp(`METAR\\s+${icao}[^<]*`))?.[0] || "METAR não encontrado.";
+        const taf = html.match(new RegExp(`TAF\\s+${icao}[^<]*`))?.[0] || "TAF não encontrado.";
+        const sigmet = html.match(/SIGMET[^<]*/)?.[0] || "SIGMET não encontrado.";
 
-        document.getElementById('metarRaw').innerText = metarText;
-        renderPanel(metarText);
-        renderTAF(tafText);
-        renderSIGMET(sigmetTexts);
-      } catch (error) {
-        document.getElementById('metarRaw').innerText = "Erro ao buscar dados.";
-        console.error("Erro:", error);
+        renderCard("🛬 METAR", traduzirTexto(metar), metar.includes("+RA") || metar.includes("TS"));
+        renderCard("📋 TAF", traduzirTexto(taf), taf.includes("TS") || taf.includes("BKN"));
+        renderCard("⚠️ SIGMET", sigmet, sigmet.includes("SEV TURB") || sigmet.includes("SEV ICE"));
+      } catch (err) {
+        document.getElementById("panel").innerHTML = "<div class='card severe'><h2>Erro</h2><span>Não foi possível obter dados do IPMA.</span></div>";
+        console.error(err);
       }
     }
 
-    function renderPanel(metar) {
-      const partes = metar.split(" ");
-      const panel = document.getElementById('metarPanel');
-      panel.innerHTML = "";
-
-      partes.forEach(p => {
-        let titulo = "", valor = "", severo = false;
-
-        if (/^\d{6}Z$/.test(p)) {
-          titulo = "🕒 Hora da Observação";
-          valor = `${p.slice(0,2)}/${p.slice(2,4)}:${p.slice(4,6)} UTC`;
-        } else if (/^\d{3}\d{2}G\d{2}KT$/.test(p)) {
-          const direcao = p.slice(0,3);
-          const vel = parseInt(p.slice(3,5));
-          const rajada = parseInt(p.slice(6,8));
-          titulo = "💨 Vento com Rajadas";
-          valor = `${direcao}° a ${vel} nós, rajadas de ${rajada} nós`;
-          severo = rajada > 25;
-        } else if (/^VRB\d{2}KT$/.test(p)) {
-          const velocidade = parseInt(p.slice(3,5));
-          titulo = "💨 Vento Variável";
-          valor = `${velocidade} nós`;
-          severo = velocidade > 30;
-        } else if (/^\d{3}\d{2}KT$/.test(p)) {
-          const direcao = p.slice(0,3);
-          const velocidade = parseInt(p.slice(3,5));
-          titulo = "💨 Vento";
-          valor = `${direcao}° a ${velocidade} nós`;
-          severo = velocidade > 30;
-        } else if (/^\d{4}$/.test(p)) {
-          const vis = parseInt(p);
-          titulo = "👁️ Visibilidade";
-          valor = `${vis} metros`;
-          severo = vis < 1000;
-        } else if (/^(FEW|SCT|BKN|OVC)\d{3}$/.test(p)) {
-          const cobertura = { FEW: "Poucas nuvens", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Encoberto" };
-          const tipo = p.slice(0,3);
-          const altura = parseInt(p.slice(3)) * 100;
-          titulo = "☁️ Nuvens";
-          valor = `${cobertura[tipo]} a ${altura} pés`;
-        } else if (/^Q\d{4}$/.test(p)) {
-          titulo = "📉 Pressão";
-          valor = `${p.slice(1)} hPa`;
-        } else if (/^\d{2}\/\d{2}$/.test(p)) {
-          const [temp, dew] = p.split("/");
-          titulo = "🌡️ Temperatura";
-          valor = `${temp}°C / Ponto de orvalho: ${dew}°C`;
-        } else if (/^(-|\+)?(RA|SN|FG|BR|HZ|TS|DZ|GR)$/.test(p)) {
-          const intensidade = p.startsWith("+") ? "forte" : p.startsWith("-") ? "fraca" : "moderada";
-          const fenomeno = {
-            RA: "chuva", SN: "neve", FG: "nevoeiro", BR: "névoa",
-            HZ: "névoa seca", TS: "trovoada", DZ: "chuvisco", GR: "granizo"
-          }[p.replace(/[-+]/, "")];
-          titulo = "🌧️ Fenômeno";
-          valor = `${fenomeno} ${intensidade}`;
-          severo = p.startsWith("+") || ["TS", "GR", "FG", "SN"].includes(p.replace(/[-+]/, ""));
-        } else if (/^NOSIG$/.test(p)) {
-          titulo = "🔮 Tendência";
-          valor = "Sem mudanças significativas";
-        } else if (/^CAVOK$/.test(p)) {
-          titulo = "🌤️ Condições";
-          valor = "Céu limpo, visibilidade >10km";
-        }
-
-        if (titulo) {
-          const div = document.createElement("div");
-          div.className = "card" + (severo ? " severe" : "");
-          div.innerHTML = `<h2>${titulo}</h2><span>${valor}</span>`;
-          panel.appendChild(div);
-        }
-      });
-    }
-
-    function renderTAF(tafRaw) {
-      const panel = document.getElementById('metarPanel');
-      const tafParts = tafRaw.split(/\s+/);
-      let output = [];
-
-      tafParts.forEach((p, i) => {
-        if (/^\d{6}Z$/.test(p)) {
-          output.push(`📅 Emitido às ${p.slice(2,4)}:${p.slice(4,6)} UTC no dia ${p.slice(0,2)}.`);
-        } else if (/^\d{4}\/\d{4}$/.test(p)) {
-          output.push(`⏳ Válido de ${p.slice(0,2)}/${p.slice(2,4)} até ${p.slice(5,7)}/${p.slice(7,9)} UTC.`);
-        } else if (/^\d{3}\d{2}KT$/.test(p)) {
-          output.push(`💨 Vento previsto: ${p.slice(0,3)}° a ${p.slice(3,5)} nós.`);
-        } else if (/^CAVOK$/.test(p)) {
-          output.push(`🌤️ Céu limpo, visibilidade >10km.`);
-        } else if (/^(BECMG|TEMPO|FM|PROB\d{2})$/.test(p)) {
-          const label = { BECMG: "Mudança gradual esperada", TEMPO: "Condições temporárias", FM: "A partir de", PROB: "Probabilidade" };
-          output.push(`🔄 ${label[p] || p}`);
-        } else if (/^\d{4}$/.test(p)) {
-          output.push(`👁️ Visibilidade prevista: ${p} metros.`);
-        } else if (/^(FEW|SCT|BKN|OVC)\d{3}$/.test(p)) {
-          const cobertura = { FEW: "Poucas nuvens", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Encoberto" };
-          const tipo = p.slice(0,3);
-          const altura = parseInt(p.slice(3)) * 100;
-          output.push(`☁️ ${cobertura[tipo]} a ${altura} pés.`);
-        } else if (/^(-|\+)?(RA|SN|FG|BR|HZ|TS|DZ|GR)$/.test(p)) {
-          const intensidade = p.startsWith("+") ? "forte" : p.startsWith("-") ? "fraca" : "moderada";
-          const fenomeno = {
-            RA: "chuva", SN: "neve", FG: "nevoeiro", BR: "névoa",
-            HZ: "névoa seca", TS: "trovoada", DZ: "chuvisco", GR: "granizo"
-          }[p.replace(/[-+]/, "")];
-          output.push(`🌧️ ${fenomeno} ${intensidade}.`);
-        }
-      });
-
+    function renderCard(titulo, texto, severo = false) {
       const div = document.createElement("div");
-      div.className = "card";
-      div.innerHTML = `<h2>📋 TAF - Previsão</h2><span>${output.join("\n")}</span>`;
-      panel.appendChild(div);
+      div.className = "card" + (severo ? " severe" : "");
+      div.innerHTML = `<h2>${titulo}</h2><span>${texto}</span>`;
+      document.getElementById("panel").appendChild(div);
     }
 
-    function renderSIGMET(sigmetList) {
-      const panel = document.getElementById('metarPanel');
-      if (sigmetList.length === 0) return;
-
-      sigmetList.forEach((sig, i) => {
-        const div = document.createElement("div");
-        div.className = "card severe";
-        div.innerHTML = `<h2>⚠️ SIGMET ${i + 1}</h2><span>${sig}</span>`;
-        panel.appendChild(div);
-      });
+    function traduzirTexto(texto) {
+      return texto
+        .replace(/(\d{6}Z)/, "🕒 Observado às $1")
+        .replace(/(\d{3})(\d{2})KT/, "💨 Vento de $1° a $2 nós")
+        .replace(/CAVOK/, "🌤️ Céu limpo, visibilidade >10km")
+        .replace(/(\d{4})/, "👁️ Visibilidade: $1 metros")
+        .replace(/(FEW|SCT|BKN|OVC)(\d{3})/, (_, tipo, alt) => {
+          const map = { FEW: "Poucas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Encoberto" };
+          return `☁️ Nuvens ${map[tipo]} a ${parseInt(alt) * 100} pés`;
+        })
+        .replace(/Q(\d{4})/, "📉 Pressão: $1 hPa")
+        .replace(/(\d{2})\/(\d{2})/, "🌡️ Temperatura: $1°C / Ponto de orvalho: $2°C")
+        .replace(/NOSIG/, "🔮 Sem mudanças significativas")
+        .replace(/(-|\+)?(RA|SN|FG|BR|TS|DZ|GR)/g, (_, int, fen) => {
+          const map = { RA: "chuva", SN: "neve", FG: "nevoeiro", BR: "névoa", TS: "trovoada", DZ: "chuvisco", GR: "granizo" };
+          const intensidade = int === "+" ? "forte" : int === "-" ? "fraca" : "moderada";
+          return `🌧️ ${map[fen]} ${intensidade}`;
+        });
     }
   </script>
 </body>
