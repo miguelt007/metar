@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Painel METAR</title>
+  <title>Painel METAR/TAF/SIGMET</title>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -54,9 +54,10 @@
       font-size: 18px;
     }
     .card span {
-      font-size: 24px;
+      font-size: 16px;
       display: block;
       margin-top: 10px;
+      white-space: pre-wrap;
     }
     #metarRaw {
       text-align: center;
@@ -66,7 +67,7 @@
   </style>
 </head>
 <body>
-  <h1>Painel de Controle METAR</h1>
+  <h1>Painel de Controle METAR / TAF / SIGMET</h1>
   <div class="input-area">
     <input type="text" id="icao" value="LPPT" placeholder="Código ICAO" />
     <button onclick="getMetar()">Buscar</button>
@@ -78,20 +79,33 @@
   <script>
     async function getMetar() {
       const icao = document.getElementById('icao').value.toUpperCase();
-      const targetUrl = `https://aviationweather.gov/cgi-bin/data/dataserver.php?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=1&stationString=${icao}`;
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+      const baseUrl = "https://aviationweather.gov/cgi-bin/data/dataserver.php";
+      const proxy = url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+
+      const endpoints = {
+        metar: `${baseUrl}?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=1&stationString=${icao}`,
+        taf: `${baseUrl}?dataSource=tafs&requestType=retrieve&format=xml&hoursBeforeNow=1&stationString=${icao}`,
+        sigmet: `${baseUrl}?dataSource=sigmets&requestType=retrieve&format=xml&hoursBeforeNow=4`
+      };
 
       try {
-        const response = await fetch(proxyUrl);
-        const data = await response.json();
-        const xml = data.contents;
-        const match = xml.match(/<raw_text>(.*?)<\/raw_text>/);
-        const metar = match ? match[1] : "METAR não encontrado.";
-        document.getElementById('metarRaw').innerText = metar;
-        renderPanel(metar);
+        const [metarRes, tafRes, sigmetRes] = await Promise.all([
+          fetch(proxy(endpoints.metar)).then(r => r.json()),
+          fetch(proxy(endpoints.taf)).then(r => r.json()),
+          fetch(proxy(endpoints.sigmet)).then(r => r.json())
+        ]);
+
+        const metarText = metarRes.contents.match(/<raw_text>(.*?)<\/raw_text>/)?.[1] || "METAR não encontrado.";
+        const tafText = tafRes.contents.match(/<raw_text>(.*?)<\/raw_text>/)?.[1] || "TAF não encontrado.";
+        const sigmetMatches = [...sigmetRes.contents.matchAll(/<raw_text>(.*?)<\/raw_text>/g)];
+        const sigmetTexts = sigmetMatches.map(m => m[1]);
+
+        document.getElementById('metarRaw').innerText = metarText;
+        renderPanel(metarText);
+        renderTAF(tafText);
+        renderSIGMET(sigmetTexts);
       } catch (error) {
         document.getElementById('metarRaw').innerText = "Erro ao buscar dados.";
-        document.getElementById('metarPanel').innerHTML = "";
         console.error("Erro:", error);
       }
     }
@@ -166,6 +180,58 @@
           div.innerHTML = `<h2>${titulo}</h2><span>${valor}</span>`;
           panel.appendChild(div);
         }
+      });
+    }
+
+    function renderTAF(tafRaw) {
+      const panel = document.getElementById('metarPanel');
+      const tafParts = tafRaw.split(/\s+/);
+      let output = [];
+
+      tafParts.forEach((p, i) => {
+        if (/^\d{6}Z$/.test(p)) {
+          output.push(`📅 Emitido às ${p.slice(2,4)}:${p.slice(4,6)} UTC no dia ${p.slice(0,2)}.`);
+        } else if (/^\d{4}\/\d{4}$/.test(p)) {
+          output.push(`⏳ Válido de ${p.slice(0,2)}/${p.slice(2,4)} até ${p.slice(5,7)}/${p.slice(7,9)} UTC.`);
+        } else if (/^\d{3}\d{2}KT$/.test(p)) {
+          output.push(`💨 Vento previsto: ${p.slice(0,3)}° a ${p.slice(3,5)} nós.`);
+        } else if (/^CAVOK$/.test(p)) {
+          output.push(`🌤️ Céu limpo, visibilidade >10km.`);
+        } else if (/^(BECMG|TEMPO|FM|PROB\d{2})$/.test(p)) {
+          const label = { BECMG: "Mudança gradual esperada", TEMPO: "Condições temporárias", FM: "A partir de", PROB: "Probabilidade" };
+          output.push(`🔄 ${label[p] || p}`);
+        } else if (/^\d{4}$/.test(p)) {
+          output.push(`👁️ Visibilidade prevista: ${p} metros.`);
+        } else if (/^(FEW|SCT|BKN|OVC)\d{3}$/.test(p)) {
+          const cobertura = { FEW: "Poucas nuvens", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Encoberto" };
+          const tipo = p.slice(0,3);
+          const altura = parseInt(p.slice(3)) * 100;
+          output.push(`☁️ ${cobertura[tipo]} a ${altura} pés.`);
+        } else if (/^(-|\+)?(RA|SN|FG|BR|HZ|TS|DZ|GR)$/.test(p)) {
+          const intensidade = p.startsWith("+") ? "forte" : p.startsWith("-") ? "fraca" : "moderada";
+          const fenomeno = {
+            RA: "chuva", SN: "neve", FG: "nevoeiro", BR: "névoa",
+            HZ: "névoa seca", TS: "trovoada", DZ: "chuvisco", GR: "granizo"
+          }[p.replace(/[-+]/, "")];
+          output.push(`🌧️ ${fenomeno} ${intensidade}.`);
+        }
+      });
+
+      const div = document.createElement("div");
+      div.className = "card";
+      div.innerHTML = `<h2>📋 TAF - Previsão</h2><span>${output.join("\n")}</span>`;
+      panel.appendChild(div);
+    }
+
+    function renderSIGMET(sigmetList) {
+      const panel = document.getElementById('metarPanel');
+      if (sigmetList.length === 0) return;
+
+      sigmetList.forEach((sig, i) => {
+        const div = document.createElement("div");
+        div.className = "card severe";
+        div.innerHTML = `<h2>⚠️ SIGMET ${i + 1}</h2><span>${sig}</span>`;
+        panel.appendChild(div);
       });
     }
   </script>
