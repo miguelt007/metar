@@ -2,8 +2,11 @@ name: Atualizar METAR e TAF
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Executa a cada hora
+    - cron: '0 * * * *'
   workflow_dispatch:
+
+permissions:
+  contents: write  # 👈 Permite push via GITHUB_TOKEN
 
 jobs:
   update:
@@ -29,12 +32,11 @@ jobs:
       - name: Buscar METAR e TAF
         run: python fetch_metar_taf.py
 
-      - name: Verificar alterações
+      - name: Commit e push
         run: |
           git add metar.json taf.json
           if git diff --cached --quiet; then
             echo "Sem alterações para commitar."
           else
             git commit -m "Atualizar METAR e TAF"
-            git push
-          fi
+            git push origin HEAD
