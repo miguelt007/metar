@@ -35,10 +35,29 @@
       margin-top: 10px;
       white-space: pre-wrap;
     }
+    #debug {
+      background: #333;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    #debug h2 {
+      color: #ffcc00;
+      margin: 0 0 10px;
+    }
+    #debug-output {
+      color: #ccc;
+      font-size: 14px;
+      white-space: pre-wrap;
+    }
   </style>
 </head>
 <body>
   <h1>Painel METAR / TAF</h1>
+  <div id="debug">
+    <h2>🔍 Diagnóstico</h2>
+    <pre id="debug-output">A carregar...</pre>
+  </div>
   <div id="panel"></div>
 
   <script>
@@ -46,8 +65,17 @@
       fetch("metar.json").then(res => res.json()),
       fetch("taf.json").then(res => res.json())
     ]).then(([metarData, tafData]) => {
-      renderCard(`🛬 METAR ${metarData.icao}`, traduzirTexto(metarData.metar), metarData.metar.includes("+RA") || metarData.metar.includes("TS") || metarData.metar.includes("0000"));
-      renderCard(`📋 TAF ${tafData.icao}`, traduzirTexto(tafData.taf), tafData.taf.includes("TS") || tafData.taf.includes("PROB"));
+      const metarTraduzido = traduzirTexto(metarData.metar);
+      const tafTraduzido = traduzirTexto(tafData.taf);
+
+      document.getElementById("debug-output").textContent =
+        "METAR bruto:\n" + metarData.metar + "\n\n" +
+        "METAR traduzido:\n" + metarTraduzido;
+
+      renderCard(`🛬 METAR ${metarData.icao}`, metarTraduzido, metarData.metar.includes("+RA") || metarData.metar.includes("TS") || metarData.metar.includes("0000"));
+      renderCard(`📋 TAF ${tafData.icao}`, tafTraduzido, tafData.taf.includes("TS") || tafData.taf.includes("PROB"));
+    }).catch(err => {
+      document.getElementById("debug-output").textContent = "❌ Erro ao carregar ficheiros METAR/TAF:\n" + err;
     });
 
     function renderCard(titulo, texto, severo = false) {
@@ -58,13 +86,15 @@
     }
 
     function traduzirTexto(texto) {
+      if (!texto || typeof texto !== "string") return "⚠️ METAR inválido ou ausente.";
+
       const horaMatch = texto.match(/(\d{2})(\d{2})(\d{2})Z/);
       let horaLocal = "";
       if (horaMatch) {
         const [_, dia, hora, minuto] = horaMatch;
         const now = new Date();
         const ano = now.getUTCFullYear();
-        const mes = now.getUTCMonth(); // zero-based
+        const mes = now.getUTCMonth();
         const dataUTC = new Date(Date.UTC(ano, mes, parseInt(dia), parseInt(hora), parseInt(minuto)));
         horaLocal = new Intl.DateTimeFormat('pt-PT', {
           timeZone: 'Europe/Lisbon',
@@ -72,7 +102,7 @@
           month: '2-digit',
           hour: '2-digit',
           minute: '2-digit'
-        }).format(dataUTC); // ex: "13/09, 01:30"
+        }).format(dataUTC);
       }
 
       return texto
