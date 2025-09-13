@@ -122,19 +122,19 @@
       if (!metar) return "";
 
       let texto = metar
-        .replace(/(\d{2})(\d{4})Z/, "Observação do dia $1 às $2 UTC")
-        .replace(/VRB(\d{2})KT/, "Vento variável a $1 nós")
-        .replace(/(\d{3})(\d{2})KT/, "Vento: $1° a $2 nós")
-        .replace(/(\d{3})V(\d{3})/, "Variação de vento entre $1° e $2°")
-        .replace(/9999/, "Visibilidade ≥10 km")
-        .replace(/(\d{2})\/(\d{2})/, "Temperatura: $1°C / Ponto de orvalho: $2°C")
-        .replace(/Q(\d{4})/, "Pressão: $1 hPa")
+        .replace(/(\d{2})(\d{4})Z/, "📅 Observação do dia $1 às $2 UTC")
+        .replace(/VRB(\d{2})KT/, "🌬️ Vento variável a $1 nós")
+        .replace(/(\d{3})(\d{2})KT/, "🌬️ Vento: $1° a $2 nós")
+        .replace(/(\d{3})V(\d{3})/, "🔄 Variação de vento entre $1° e $2°")
+        .replace(/9999/, "👁️ Visibilidade ≥10 km")
+        .replace(/(\d{2})\/(\d{2})/, "🌡️ Temperatura: $1°C / Ponto de orvalho: $2°C")
+        .replace(/Q(\d{4})/, "📈 Pressão: $1 hPa")
         .replace(/(FEW|SCT|BKN|OVC)(\d{3})/g, (_, tipo, altura) => {
           const mapa = {
-            FEW: "Poucas nuvens",
-            SCT: "Nuvens dispersas",
-            BKN: "Nuvens fragmentadas",
-            OVC: "Cobertura total de nuvens"
+            FEW: "☁️ Poucas nuvens",
+            SCT: "☁️ Nuvens dispersas",
+            BKN: "☁️ Nuvens fragmentadas",
+            OVC: "☁️ Cobertura total de nuvens"
           };
           const altitude = parseInt(altura, 10) * 100;
           return `${mapa[tipo]} a ${altitude} pés`;
@@ -142,7 +142,7 @@
 
       const rmkMatch = metar.match(/RMK (.+)/);
       if (rmkMatch) {
-        texto += `\nObservações (RMK): ${descodificarRMK(rmkMatch[1])}`;
+        texto += `\n📝 Observações (RMK): ${descodificarRMK(rmkMatch[1])}`;
       }
 
       return texto;
@@ -152,37 +152,37 @@
       return rmk
         .replace(/WIND RWY(\d{2}) (\d{3})(\d{2})KT (\d{3})V(\d{3})/g,
           (_, pista, dir, vel, var1, var2) =>
-            `Vento na pista ${pista}: ${dir}° a ${vel} nós, variando entre ${var1}° e ${var2}°`)
+            `🛬 Vento na pista ${pista}: ${dir}° a ${vel} nós, variando entre ${var1}° e ${var2}°`)
         .replace(/WIND RWY(\d{2}) (\d{3})(\d{2})KT/g,
           (_, pista, dir, vel) =>
-            `Vento na pista ${pista}: ${dir}° a ${vel} nós`);
+            `🛬 Vento na pista ${pista}: ${dir}° a ${vel} nós`);
     }
 
     function descodificarTAF(taf) {
       if (!taf) return "";
 
       return taf
-        .replace(/TAF\s+(\w+)/, "Previsão para: $1")
-        .replace(/(\d{6})Z/, "Emitido às: $1 UTC")
-        .replace(/(\d{4})\/(\d{4})/, "Válido de: $1 até $2 UTC")
-        .replace(/FM(\d{6})/, "A partir de: $1 UTC")
-        .replace(/BECMG (\d{4}\/\d{4})/, "Tendência: $1")
-        .replace(/TEMPO (\d{4}\/\d{4})/, "Condições temporárias: $1")
-        .replace(/PROB(\d{2}) (\d{4}\/\d{4})/, "Probabilidade $1% entre $2")
-        .replace(/NSW/, "Sem fenómenos significativos (NSW)")
-        .replace(/TX(\d{2})\/(\d{4})Z/, "Temp máxima: $1°C às $2 UTC")
-        .replace(/TN(\d{2})\/(\d{4})Z/, "Temp mínima: $1°C às $2 UTC")
-        .replace(/VRB(\d{2})KT/, "Vento variável a $1 nós")
-        .replace(/(\d{3})(\d{2})KT/, "Vento: $1° a $2 nós")
-        .replace(/(\d{3})V(\d{3})/, "Variação de vento entre $1° e $2°")
-        .replace(/9999/, "Visibilidade ≥10 km")
-        .replace(/CAVOK/, "Condições visuais excelentes (CAVOK)")
+        .replace(/TAF\s+(\w+)/, "📍 Previsão para: $1")
+        .replace(/(\d{6})Z/, "📅 Emitido às: $1 UTC")
+        .replace(/(\d{4})\/(\d{4})/, "🕒 Válido de: $1 até $2 UTC")
+        .replace(/FM(\d{6})/, "⏩ A partir de: $1 UTC")
+        .replace(/BECMG (\d{4}\/\d{4})/, "🔁 Tendência: $1")
+        .replace(/TEMPO (\d{4}\/\d{4})/, "🌦️ Condições temporárias: $1")
+        .replace(/PROB(\d{2}) (\d{4}\/\d{4})/, "📊 Probabilidade $1% entre $2")
+        .replace(/NSW/, "✅ Sem fenómenos significativos (NSW)")
+        .replace(/TX(\d{2})\/(\d{4})Z/, "🌡️ Temp máxima: $1°C às $2 UTC")
+        .replace(/TN(\d{2})\/(\d{4})Z/, "🌡️ Temp mínima: $1°C às $2 UTC")
+        .replace(/VRB(\d{2})KT/, "🌬️ Vento variável a $1 nós")
+        .replace(/(\d{3})(\d{2})KT/, "🌬️ Vento: $1° a $2 nós")
+        .replace(/(\d{3})V(\d{3})/, "🔄 Variação de vento entre $1° e $2°")
+        .replace(/9999/, "👁️ Visibilidade ≥10 km")
+        .replace(/CAVOK/, "☀️ Condições visuais excelentes (CAVOK)")
         .replace(/(FEW|SCT|BKN|OVC)(\d{3})/g, (_, tipo, altura) => {
           const mapa = {
-            FEW: "Poucas nuvens",
-            SCT: "Nuvens dispersas",
-            BKN: "Nuvens fragmentadas",
-            OVC: "Cobertura total de nuvens"
+            FEW: "☁️ Poucas nuvens",
+            SCT: "☁️ Nuvens dispersas",
+            BKN: "☁️ Nuvens fragmentadas",
+            OVC: "☁️ Cobertura total de nuvens"
           };
           const altitude = parseInt(altura, 10) * 100;
           return `${mapa[tipo]} a ${altitude} pés`;
