@@ -18,7 +18,7 @@ jobs:
           echo "📁 Conteúdo atual da pasta dados:"
           ls -lh dados/
 
-          for ICAO in LPPT LPFR LPPR LPCS LPMR LPPD LPSJ LPAV LPVZ LPMA KJFK KLAX KORD; do
+          for ICAO in LPPT LPFR LPPR LPCS LPMR LPPD LPSJ LPPS LPMA KJFK KLAX KORD; do
             echo "🔄 A atualizar $ICAO..."
 
             METAR=$(curl -s "https://tgftp.nws.noaa.gov/data/observations/metar/stations/${ICAO}.TXT" | tail -n1 || true)
@@ -27,11 +27,14 @@ jobs:
             [ -z "$METAR" ] && METAR="METAR não disponível para ${ICAO}"
             [ -z "$TAF" ] && TAF="TAF não disponível para ${ICAO}"
 
+            TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
             echo "📄 METAR para $ICAO: $METAR"
             echo "📄 TAF para $ICAO: $TAF"
+            echo "🕒 Timestamp: $TIMESTAMP"
 
-            echo "{\"icao\":\"$ICAO\",\"metar\":\"$METAR\"}" > dados/metar-$ICAO.json
-            echo "{\"icao\":\"$ICAO\",\"taf\":\"$TAF\"}" > dados/taf-$ICAO.json
+            echo "{\"icao\":\"$ICAO\",\"metar\":\"$METAR\",\"updated\":\"$TIMESTAMP\"}" > dados/metar-$ICAO.json
+            echo "{\"icao\":\"$ICAO\",\"taf\":\"$TAF\",\"updated\":\"$TIMESTAMP\"}" > dados/taf-$ICAO.json
           done
 
           echo "✅ Ficheiros atualizados:"
