@@ -16,9 +16,12 @@ jobs:
       - name: Atualizar ficheiros JSON existentes
         run: |
           echo "📁 Conteúdo atual da pasta dados:"
-          ls -lh dados/
+          mkdir -p dados
+          ls -lh dados/ || true
 
-          for ICAO in LPPT LPFR LPPR LPCS LPMR LPPD LPLA LPSJ LPPS LPMA KJFK KLAX KORD; do
+          ICAOS="LPPT LPFR LPPR LPCS LPMR LPPD LPLA LPAZ LPSJ LPPS LPMA KJFK KLAX KORD"
+
+          for ICAO in $ICAOS; do
             echo "🔄 A atualizar $ICAO..."
 
             METAR=$(curl -s "https://tgftp.nws.noaa.gov/data/observations/metar/stations/${ICAO}.TXT" | tail -n1 || true)
@@ -37,11 +40,13 @@ jobs:
             echo "{\"icao\":\"$ICAO\",\"taf\":\"$TAF\",\"updated\":\"$TIMESTAMP\"}" > dados/taf-$ICAO.json
           done
 
-          echo "✅ Ficheiros atualizados:"
-          ls -lh dados/
+          echo "🧩 Gerando lista de ICAOs disponíveis..."
+          ICAO_LIST=$(ls dados/metar-*.json | sed 's|dados/metar-||;s|\.json||' | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "$ICAO_LIST" > dados/icao-lista.json
+          echo "✅ ICAOs disponíveis: $ICAO_LIST"
 
       - name: Commit e push automático
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Atualização automática METAR/TAF"
+          commit_message: "Atualização automática METAR/TAF + lista de ICAOs"
           file_pattern: dados/*.json
