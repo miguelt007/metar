@@ -5,26 +5,28 @@
   <title>METAR Viewer</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; background: #f0f0f0; }
-    #metar { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 0 10px #ccc; }
+    #metar { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 0 10px #ccc; margin-top: 20px; }
   </style>
 </head>
 <body>
-  <h1>Condições METAR</h1>
+  <h1>METAR - Condições Meteorológicas</h1>
   <label for="icao">Código ICAO:</label>
   <input type="text" id="icao" value="LPPT" />
   <button onclick="getMetar()">Buscar</button>
+
   <div id="metar">Insira um código ICAO e clique em buscar.</div>
 
   <script>
     async function getMetar() {
       const icao = document.getElementById('icao').value.toUpperCase();
-      const url = `https://aviationweather.gov/api/data?datatype=metar&ids=${icao}&format=json`;
+      const url = `https://aviationweather.gov/cgi-bin/data/dataserver.php?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=1&stationString=${icao}`;
 
       try {
         const response = await fetch(url);
-        const data = await response.json();
-        const metarText = data?.data?.[0]?.rawText || "METAR não encontrado.";
-        document.getElementById('metar').innerText = metarText;
+        const text = await response.text();
+        const match = text.match(/<raw_text>(.*?)<\/raw_text>/);
+        const metar = match ? match[1] : "METAR não encontrado.";
+        document.getElementById('metar').innerText = metar;
       } catch (error) {
         document.getElementById('metar').innerText = "Erro ao buscar dados.";
         console.error(error);
