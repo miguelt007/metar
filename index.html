@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8">
-  <title>Painel METAR Local</title>
+  <title>Painel METAR / TAF</title>
   <style>
     body { font-family: 'Segoe UI', sans-serif; background: #1e1e2f; color: #fff; padding: 30px; margin: 0; }
     h1 { text-align: center; }
@@ -13,41 +13,47 @@
   </style>
 </head>
 <body>
-  <h1>Painel METAR Local</h1>
+  <h1>Painel METAR / TAF</h1>
   <div id="panel"></div>
 
   <script>
-    fetch("metar.json")
-      .then(res => res.json())
-      .then(data => {
-        const raw = data.metar || "METAR não disponível.";
-        const texto = traduzirTexto(raw);
-        const severo = raw.includes("+RA") || raw.includes("TS") || raw.includes("0000") || raw.includes("1300");
+    Promise.all([
+      fetch("metar.json").then(res => res.json()),
+      fetch("taf.json").then(res => res.json())
+    ]).then(([metarData, tafData]) => {
+      renderCard(`🛬 METAR ${metarData.icao}`, traduzirTexto(metarData.metar), metarData.metar.includes("+RA") || metarData.metar.includes("TS") || metarData.metar.includes("1300"));
+      renderCard(`📋 TAF ${tafData.icao}`, traduzirTexto(tafData.taf), tafData.taf.includes("TS") || tafData.taf.includes("PROB"));
+    });
 
-        const div = document.createElement("div");
-        div.className = "card" + (severo ? " severe" : "");
-        div.innerHTML = `<h2>🛬 METAR ${data.icao}</h2><span>${texto}</span>`;
-        document.getElementById("panel").appendChild(div);
-      });
+    function renderCard(titulo, texto, severo = false) {
+      const div = document.createElement("div");
+      div.className = "card" + (severo ? " severe" : "");
+      div.innerHTML = `<h2>${titulo}</h2><span>${texto}</span>`;
+      document.getElementById("panel").appendChild(div);
+    }
 
     function traduzirTexto(texto) {
       return texto
-        .replace(/(\d{6}Z)/, "🕒 Observado às $1")
-        .replace(/(\d{3})(\d{2})KT/, "💨 Vento de $1° a $2 nós")
-        .replace(/CAVOK/, "🌤️ Céu limpo, visibilidade >10km")
-        .replace(/(\d{4})/, "👁️ Visibilidade: $1 metros")
+        .replace(/(\d{6}Z)/g, "🕒 Observado às $1")
+        .replace(/(\d{3})(\d{2})KT/g, "💨 Vento de $1° a $2 nós")
+        .replace(/CAVOK/g, "🌤️ Céu limpo, visibilidade >10km")
+        .replace(/(\d{4})/g, "👁️ Visibilidade: $1 metros")
         .replace(/(FEW|SCT|BKN|OVC)(\d{3})/g, (_, tipo, alt) => {
           const map = { FEW: "Poucas", SCT: "Dispersas", BKN: "Fragmentadas", OVC: "Encoberto" };
           return `☁️ Nuvens ${map[tipo]} a ${parseInt(alt) * 100} pés`;
         })
-        .replace(/Q(\d{4})/, "📉 Pressão: $1 hPa")
-        .replace(/(\d{2})\/(\d{2})/, "🌡️ Temperatura: $1°C / Ponto de orvalho: $2°C")
-        .replace(/NOSIG/, "🔮 Sem mudanças significativas")
+        .replace(/Q(\d{4})/g, "📉 Pressão: $1 hPa")
+        .replace(/(\d{2})\/(\d{2})/g, "🌡️ Temperatura: $1°C / Ponto de orvalho: $2°C")
+        .replace(/NOSIG/g, "🔮 Sem mudanças significativas")
         .replace(/(-|\+)?(RA|SN|FG|BR|TS|DZ|GR)/g, (_, int, fen) => {
           const map = { RA: "chuva", SN: "neve", FG: "nevoeiro", BR: "névoa", TS: "trovoada", DZ: "chuvisco", GR: "granizo" };
           const intensidade = int === "+" ? "forte" : int === "-" ? "fraca" : "moderada";
           return `🌧️ ${map[fen]} ${intensidade}`;
-        });
+        })
+        .replace(/BECMG/g, "🔄 Mudança gradual esperada")
+        .replace(/TEMPO/g, "🔄 Condições temporárias")
+        .replace(/FM(\d{6})/g, (_, hora) => `🕒 A partir de ${hora.slice(0,2)}/${hora.slice(2,4)}:${hora.slice(4,6)} UTC`)
+        .replace(/PROB(\d{2})/g, (_, prob) => `📊 Probabilidade ${prob}%`);
     }
   </script>
 </body>
